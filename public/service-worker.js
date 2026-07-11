@@ -1,17 +1,9 @@
 const CACHE_NAME = 'ielts-collocation-leitner-box-v1';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/src/main.tsx',
-  '/src/App.tsx',
-  '/src/components/FlashCard.tsx',
-  '/src/components/Dashboard.tsx',
-  '/src/components/LeitnerBox.tsx',
-  '/src/components/Categories.tsx',
-  '/src/components/ProgressChart.tsx',
-  '/src/utils/leitnerAlgorithm.ts',
-  '/src/utils/storage.ts'
+  './',
+  './index.html',
+  './manifest.json',
+  './icon.svg'
 ];
 
 self.addEventListener('install', (event) => {
