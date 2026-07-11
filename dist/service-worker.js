@@ -1,7 +1,7 @@
 const CACHE_NAME = 'ielts-collocation-leitner-box-v1';
 const BASE_PATH = self.location.pathname.replace(/service-worker\.js$/, '');
 const ASSETS = [
-  BASE_PATH,
+  `${BASE_PATH}`,
   `${BASE_PATH}index.html`,
   `${BASE_PATH}manifest.json`,
   `${BASE_PATH}icon.svg`
