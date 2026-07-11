@@ -5,7 +5,7 @@
   "description": "PWA for IELTS collocation learning with a Leitner box system.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && npx vite build",
     "preview": "vite preview"
   },
   "dependencies": {
