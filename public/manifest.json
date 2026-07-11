@@ -1,16 +1,14 @@
 {
   "name": "IELTS Collocation Leitner Box",
-  "short_name": "IELTS Leitner",
-  "description": "یادگیری کالوکیشن‌های آیلتس با سیستم جعبه لایتنر",
-  "start_url": "/IELTS-Collocation-Leitner-Box/",
-  "scope": "/IELTS-Collocation-Leitner-Box/",
+  "short_name": "IELTS Box",
+  "start_url": "./",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#020614",
+  "theme_color": "#020614",
   "icons": [
     {
-      "src": "icon.svg",
-      "sizes": "any",
+      "src": "./icon.svg",
+      "sizes": "512x512",
       "type": "image/svg+xml"
     }
   ]
