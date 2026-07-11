@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="28" ry="28" fill="#0f172a"/>
+  <circle cx="64" cy="40" r="26" fill="#38bdf8" opacity="0.18"/>
+  <path d="M36 86h56v8H36z" fill="#38bdf8" opacity="0.35"/>
+  <text x="64" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="28" fill="#ffffff" font-weight="700">IELTS</text>
+</svg>
