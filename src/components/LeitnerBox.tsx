@@ -4,17 +4,16 @@ type Props = {
 };
 
 const LeitnerBox = ({ boxCounts, labels }: Props) => {
+  const boxNames = ['📌 جدید', '✍️ اول', '📖 دوم', '🔒 تثبیت', '🏆 تسلط'];
+
   return (
-    <div className="leitner-panel glass-card">
-      <div className="panel-header">Leitner boxes</div>
-      <div className="box-list modern-box-list">
-        {boxCounts.map((count, index) => (
-          <div key={index} className="box-item modern-box-item">
-            <span>{labels[index]}</span>
-            <strong>{count}</strong>
-          </div>
-        ))}
-      </div>
+    <div className="leitner-boxes">
+      {boxCounts.map((count, index) => (
+        <div key={index} className="box-item">
+          <div className="box-label">{boxNames[index]}</div>
+          <div className="box-count">{count}</div>
+        </div>
+      ))}
     </div>
   );
 };

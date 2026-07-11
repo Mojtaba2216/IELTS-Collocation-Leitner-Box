@@ -13,47 +13,39 @@ type Props = {
 
 const Dashboard = ({ totalCards, learned, reviewToday, progress, categoryProgress, currentCategory, streak }: Props) => {
   return (
-    <div className="dashboard-panel glass-card">
-      <div className="dashboard-header">
-        <span className="section-label">Quick summary</span>
-        <strong>Learning snapshot</strong>
-      </div>
-
+    <div className="dashboard-panel">
       <div className="dashboard-grid">
         <div className="dashboard-stat">
-          <span>Total cards</span>
+          <span>مجموع کارت‌ها</span>
           <strong>{totalCards}</strong>
         </div>
         <div className="dashboard-stat">
-          <span>Mastered</span>
+          <span>تسلط یافته</span>
           <strong>{learned}</strong>
         </div>
         <div className="dashboard-stat">
-          <span>Today&apos;s review</span>
+          <span>مرور امروز</span>
           <strong>{reviewToday}</strong>
         </div>
-        <div className="dashboard-ring-card">
-          <span>Progress</span>
-          <div
-            className="circle-ring"
-            style={{
-              background: `conic-gradient(var(--accent-strong) ${progress * 3.6}deg, rgba(255,255,255,0.06) 0deg)`
-            }}
-          >
-            <strong>{progress}%</strong>
-          </div>
+        <div className="dashboard-stat">
+          <span>درصد</span>
+          <strong>{progress}%</strong>
         </div>
       </div>
 
-      <div className="dashboard-meta">
-        <div>
-          <span>Current streak</span>
-          <strong>{streak} days</strong>
+      <div className="dashboard-ring-card">
+        <span>دسته‌های درحال مطالعه</span>
+        <div className="circle-ring">
+          <strong>{categoryProgress.value}%</strong>
         </div>
-        <div>
-          <span>{currentCategory === 'All' ? 'Learning all categories' : currentCategory}</span>
-          <strong>{categoryProgress.label}</strong>
-        </div>
+        <p style={{ textAlign: 'center', color: '#cbd5e1', fontSize: '14px' }}>
+          {currentCategory === 'All' ? 'یادگیری از همه دسته‌ها' : currentCategory}
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderRadius: '16px', background: 'rgba(255, 255, 255, 0.05)' }}>
+        <span style={{ color: '#cbd5e1' }}>تعداد روز متوالی</span>
+        <strong style={{ fontSize: '20px', color: '#3b82f6' }}>{streak} روز</strong>
       </div>
     </div>
   );

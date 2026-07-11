@@ -1,0 +1,302 @@
+[
+  {
+    "id": 1,
+    "english": "environmental impact",
+    "translation": "تأثیر محیطی",
+    "pronunciation": "/ɪnˌvaɪrənˈmentəl ˈɪmpækt/",
+    "example": "The environmental impact of industrial development requires immediate government action.",
+    "exampleTranslation": "تأثیر محیطی توسعه صنعتی نیاز به اقدام فوری دولتی دارد.",
+    "level": "B2",
+    "category": "محیط‌زیست"
+  },
+  {
+    "id": 2,
+    "english": "carbon footprint",
+    "translation": "رد پای کربن",
+    "pronunciation": "/ˈkɑːrbən ˈfʊtprɪnt/",
+    "example": "Reducing carbon footprint is essential for combating climate change.",
+    "exampleTranslation": "کاهش رد پای کربن برای مبارزه با تغییرات آب‌و‌هوا ضروری است.",
+    "level": "B2",
+    "category": "محیط‌زیست"
+  },
+  {
+    "id": 3,
+    "english": "renewable energy",
+    "translation": "انرژی تجدیدپذیر",
+    "pronunciation": "/rɪˈnjuːəbəl ˈenədʒi/",
+    "example": "Governments are investing heavily in renewable energy sources.",
+    "exampleTranslation": "دولت‌ها در منابع انرژی تجدیدپذیر سرمایه‌گذاری زیادی می‌کنند.",
+    "level": "B2",
+    "category": "محیط‌زیست"
+  },
+  {
+    "id": 4,
+    "english": "waste management",
+    "translation": "مدیریت پسماند",
+    "pronunciation": "/weɪst ˈmænɪdʒmənt/",
+    "example": "Effective waste management reduces environmental pollution significantly.",
+    "exampleTranslation": "مدیریت مؤثر پسماند آلودگی محیط‌زیست را به‌طور چشمگیری کاهش می‌دهد.",
+    "level": "B1",
+    "category": "محیط‌زیست"
+  },
+  {
+    "id": 5,
+    "english": "plastic pollution",
+    "translation": "آلودگی پلاستیک",
+    "pronunciation": "/ˈplæstɪk pəˈluːʃən/",
+    "example": "Plastic pollution poses a severe threat to marine ecosystems.",
+    "exampleTranslation": "آلودگی پلاستیک تهدیدی جدی برای اکوسیستم‌های دریایی است.",
+    "level": "B2",
+    "category": "محیط‌زیست"
+  },
+  {
+    "id": 6,
+    "english": "climate change",
+    "translation": "تغییرات آب‌و‌هوا",
+    "pronunciation": "/ˈklaɪmət tʃeɪndʒ/",
+    "example": "Climate change requires immediate and coordinated global action.",
+    "exampleTranslation": "تغییرات آب‌و‌هوا نیازمند اقدام فوری و هماهنگ جهانی است.",
+    "level": "B1",
+    "category": "محیط‌زیست"
+  },
+  {
+    "id": 7,
+    "english": "higher education",
+    "translation": "آموزش عالی",
+    "pronunciation": "/ˈhaɪə(r) ˌedʒʊˈkeɪʃən/",
+    "example": "Higher education plays a crucial role in developing skilled professionals.",
+    "exampleTranslation": "آموزش عالی نقش مهمی در تربیت متخصصان ماهر دارد.",
+    "level": "B1",
+    "category": "آموزش"
+  },
+  {
+    "id": 8,
+    "english": "academic achievement",
+    "translation": "دستاورد آکادمیک",
+    "pronunciation": "/ˌækəˈdemɪk əˈtʃiːvmənt/",
+    "example": "Academic achievement requires dedication and consistent effort.",
+    "exampleTranslation": "دستاورد آکادمیک نیازمند تلاش مداوم و تعهد است.",
+    "level": "B2",
+    "category": "آموزش"
+  },
+  {
+    "id": 9,
+    "english": "critical thinking",
+    "translation": "تفکر انتقادی",
+    "pronunciation": "/ˈkrɪtɪkəl ˈθɪŋkɪŋ/",
+    "example": "Developing critical thinking skills helps students solve complex problems.",
+    "exampleTranslation": "توسعه مهارت‌های تفکر انتقادی به دانشجویان کمک می‌کند مسائل پیچیده را حل کنند.",
+    "level": "B2",
+    "category": "آموزش"
+  },
+  {
+    "id": 10,
+    "english": "distance learning",
+    "translation": "یادگیری از راه دور",
+    "pronunciation": "/ˈdɪstəns ˈlɜːrnɪŋ/",
+    "example": "Distance learning has become increasingly popular in recent years.",
+    "exampleTranslation": "یادگیری از راه دور در سال‌های اخیر روزبه‌روز محبوب‌تر شده است.",
+    "level": "B2",
+    "category": "آموزش"
+  },
+  {
+    "id": 11,
+    "english": "economic growth",
+    "translation": "رشد اقتصادی",
+    "pronunciation": "/ˌiːkəˈnɒmɪk ɡrəʊθ/",
+    "example": "Sustainable economic growth ensures long-term prosperity without resource depletion.",
+    "exampleTranslation": "رشد اقتصادی پایدار شکوفایی طولانی‌مدت را بدون تخلیه منابع تضمین می‌کند.",
+    "level": "B2",
+    "category": "اقتصاد"
+  },
+  {
+    "id": 12,
+    "english": "job creation",
+    "translation": "ایجاد شغل",
+    "pronunciation": "/dʒɒb kriˈeɪʃən/",
+    "example": "Job creation through innovation stimulates overall economic development.",
+    "exampleTranslation": "ایجاد شغل از طریق نوآوری توسعه اقتصادی کلی را تحریک می‌کند.",
+    "level": "B1",
+    "category": "اقتصاد"
+  },
+  {
+    "id": 13,
+    "english": "poverty reduction",
+    "translation": "کاهش فقر",
+    "pronunciation": "/ˈpɒvəti rɪˈdʌkʃən/",
+    "example": "Poverty reduction requires coordinated efforts across government and private sectors.",
+    "exampleTranslation": "کاهش فقر نیازمند تلاش‌های هماهنگ در بخش دولتی و خصوصی است.",
+    "level": "B2",
+    "category": "اقتصاد"
+  },
+  {
+    "id": 14,
+    "english": "free trade",
+    "translation": "تجارت آزاد",
+    "pronunciation": "/friː treɪd/",
+    "example": "Free trade agreements facilitate the exchange of goods between nations.",
+    "exampleTranslation": "توافق‌نامه‌های تجارت آزاد تبادل کالا میان کشورها را تسهیل می‌کنند.",
+    "level": "B2",
+    "category": "اقتصاد"
+  },
+  {
+    "id": 15,
+    "english": "artificial intelligence",
+    "translation": "هوش مصنوعی",
+    "pronunciation": "/ˌɑːrtɪˈfɪʃəl ɪnˈtelɪdʒəns/",
+    "example": "Artificial intelligence is transforming industries and creating new opportunities.",
+    "exampleTranslation": "هوش مصنوعی صنایع را متحول می‌کند و فرصت‌های جدیدی ایجاد می‌کند.",
+    "level": "B2",
+    "category": "فناوری"
+  },
+  {
+    "id": 16,
+    "english": "digital transformation",
+    "translation": "تحول دیجیتال",
+    "pronunciation": "/ˈdɪdʒɪtəl ˌtrænsfərˈmeɪʃən/",
+    "example": "Digital transformation helps businesses adapt to modern market demands.",
+    "exampleTranslation": "تحول دیجیتال به کسب‌وکارها کمک می‌کند با تقاضاهای بازار مدرن هماهنگ شوند.",
+    "level": "B2",
+    "category": "فناوری"
+  },
+  {
+    "id": 17,
+    "english": "data security",
+    "translation": "امنیت داده",
+    "pronunciation": "/ˈdeɪtə sɪˈkjʊərəti/",
+    "example": "Data security measures protect sensitive information from unauthorized access.",
+    "exampleTranslation": "اقدامات امنیت داده اطلاعات حساس را از دسترسی غیرمجاز محافظت می‌کنند.",
+    "level": "B2",
+    "category": "فناوری"
+  },
+  {
+    "id": 18,
+    "english": "public health",
+    "translation": "سلامت عمومی",
+    "pronunciation": "/ˈpʌblɪk helθ/",
+    "example": "Public health initiatives aim to improve population wellness and disease prevention.",
+    "exampleTranslation": "ابتکارات سلامت عمومی هدفشان بهبود سلامت جمعیت و پیشگیری از بیماری است.",
+    "level": "B2",
+    "category": "سلامت"
+  },
+  {
+    "id": 19,
+    "english": "chronic disease",
+    "translation": "بیماری مزمن",
+    "pronunciation": "/ˈkrɒnɪk dɪˈziːz/",
+    "example": "Managing chronic disease requires long-term treatment and lifestyle modifications.",
+    "exampleTranslation": "مدیریت بیماری مزمن نیازمند درمان طولانی‌مدت و تغییر سبک زندگی است.",
+    "level": "B2",
+    "category": "سلامت"
+  },
+  {
+    "id": 20,
+    "english": "healthcare access",
+    "translation": "دسترسی به مراقبت‌های بهداشتی",
+    "pronunciation": "/ˈhelθkeər ˈækses/",
+    "example": "Improving healthcare access ensures citizens receive necessary medical treatment.",
+    "exampleTranslation": "بهبود دسترسی به مراقبت‌های بهداشتی تضمین می‌کند شهروندان درمان پزشکی مورد نیاز خود را دریافت کنند.",
+    "level": "B2",
+    "category": "سلامت"
+  },
+  {
+    "id": 21,
+    "english": "crime prevention",
+    "translation": "پیشگیری از جرم",
+    "pronunciation": "/kraɪm prɪˈvenʃən/",
+    "example": "Effective crime prevention strategies reduce violent incidents in urban areas.",
+    "exampleTranslation": "استراتژی‌های مؤثر پیشگیری از جرم حوادث خشونت‌آمیز در مناطق شهری را کاهش می‌دهند.",
+    "level": "B2",
+    "category": "جرم و قانون"
+  },
+  {
+    "id": 22,
+    "english": "legal framework",
+    "translation": "چارچوب قانونی",
+    "pronunciation": "/ˈliːɡəl ˈfreɪmwɜːrk/",
+    "example": "A strong legal framework is essential for maintaining social order.",
+    "exampleTranslation": "چارچوب قانونی قوی برای حفظ نظم اجتماعی ضروری است.",
+    "level": "B2",
+    "category": "جرم و قانون"
+  },
+  {
+    "id": 23,
+    "english": "justice system",
+    "translation": "نظام عدالت",
+    "pronunciation": "/ˈdʒʌstɪs ˈsɪstəm/",
+    "example": "A fair justice system protects individual rights and upholds democracy.",
+    "exampleTranslation": "نظام عدالت منصفانه حقوق فردی را محافظت می‌کند و دموکراسی را تقویت می‌کند.",
+    "level": "B2",
+    "category": "جرم و قانون"
+  },
+  {
+    "id": 24,
+    "english": "urban development",
+    "translation": "توسعه شهری",
+    "pronunciation": "/ˈɜːrbən dɪˈveləpmənt/",
+    "example": "Sustainable urban development balances growth with environmental protection.",
+    "exampleTranslation": "توسعه شهری پایدار رشد را با حفاظت از محیط‌زیست متعادل می‌کند.",
+    "level": "B2",
+    "category": "شهرسازی"
+  },
+  {
+    "id": 25,
+    "english": "public transport",
+    "translation": "حمل‌ونقل عمومی",
+    "pronunciation": "/ˈpʌblɪk ˈtrænspɔːt/",
+    "example": "Efficient public transport systems reduce congestion and pollution.",
+    "exampleTranslation": "سیستم‌های حمل‌ونقل عمومی کارآمد ترافیک و آلودگی را کاهش می‌دهند.",
+    "level": "B1",
+    "category": "شهرسازی"
+  },
+  {
+    "id": 26,
+    "english": "gender equality",
+    "translation": "برابری جنسیتی",
+    "pronunciation": "/ˈdʒendər iˈkwɒləti/",
+    "example": "Gender equality accelerates social progress and economic development.",
+    "exampleTranslation": "برابری جنسیتی پیشرفت اجتماعی و توسعه اقتصادی را تسریع می‌کند.",
+    "level": "B2",
+    "category": "حقوق اجتماعی"
+  },
+  {
+    "id": 27,
+    "english": "human rights",
+    "translation": "حقوق بشر",
+    "pronunciation": "/ˈhjuːmən raɪts/",
+    "example": "Protecting human rights is fundamental to democratic governance.",
+    "exampleTranslation": "محافظت از حقوق بشر بنیادی برای حاکمیت دموکراتیک است.",
+    "level": "B2",
+    "category": "حقوق اجتماعی"
+  },
+  {
+    "id": 28,
+    "english": "social integration",
+    "translation": "ادغام اجتماعی",
+    "pronunciation": "/ˈsəʊʃəl ˌɪntɪˈɡreɪʃən/",
+    "example": "Social integration of immigrants requires comprehensive policy support.",
+    "exampleTranslation": "ادغام اجتماعی مهاجران نیازمند حمایت سیاستی جامع است.",
+    "level": "B2",
+    "category": "حقوق اجتماعی"
+  },
+  {
+    "id": 29,
+    "english": "skill development",
+    "translation": "توسعه مهارت",
+    "pronunciation": "/skɪl dɪˈveləpmənt/",
+    "example": "Skill development programs prepare workers for modern job markets.",
+    "exampleTranslation": "برنامه‌های توسعه مهارت کارگران را برای بازارهای شغلی مدرن آماده می‌کنند.",
+    "level": "B1",
+    "category": "آموزش"
+  },
+  {
+    "id": 30,
+    "english": "sustainable development",
+    "translation": "توسعه پایدار",
+    "pronunciation": "/səˈsteɪnəbəl dɪˈveləpmənt/",
+    "example": "Sustainable development ensures future generations inherit a healthy planet.",
+    "exampleTranslation": "توسعه پایدار تضمین می‌کند نسل‌های آینده سیاره‌ای سالم را به ارث ببرند.",
+    "level": "B2",
+    "category": "محیط‌زیست"
+  }
+]
