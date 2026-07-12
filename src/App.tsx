@@ -5,7 +5,7 @@ import {
   buildDailyReviewSummary,
   ensureAllCategoryStates,
   getDefaultCategoryState,
-  getTodayString
+  getCurrentDate
 } from './utils/leitnerAlgorithm';
 import { loadProgress, saveProgress } from './utils/storage';
 import FlashCard from './components/FlashCard';
@@ -151,7 +151,7 @@ const CustomSelect = ({ value, options, onChange, className = '' }: CustomSelect
 const App = () => {
   const [progress, setProgress] = useState<SavedProgress>(() => ({
     ...initialStoredProgress,
-    categoryStates: ensureAllCategoryStates(initialStoredProgress.categoryStates, collocations, getTodayString(), 10)
+    categoryStates: ensureAllCategoryStates(initialStoredProgress.categoryStates, collocations, getCurrentDate(), 10)
   }));
   const [tab, setTab] = useState<Tab>('home');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
@@ -163,7 +163,7 @@ const App = () => {
   const [studyMode, setStudyMode] = useState<'standard' | 'again'>('standard');
 
   const t = locales.fa;
-  const today = getTodayString();
+  const today = getCurrentDate();
 
   const categories = useMemo(() => {
     return categoryNames.map((category) => ({
@@ -290,15 +290,15 @@ const App = () => {
       const nextCardState = applyReviewResponse(
         currentCategoryState.cards[currentCard.id] ?? {
           id: currentCard.id,
+          category: selectedCategory,
           box: 1,
-          lastReviewed: '',
-          nextReviewAt: today,
-          reviewCount: 0,
           createdAt: today,
-          introducedOn: today
+          nextReviewDate: today,
+          lastReviewedDate: '',
+          reviewCount: 0
         },
         response,
-        today,
+        reviewedAt,
         today
       );
 

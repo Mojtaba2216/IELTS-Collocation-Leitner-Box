@@ -17,11 +17,26 @@ const isReviewHistoryEntry = (item: unknown): item is ReviewHistoryEntry => {
 const isCategoryStudyState = (item: unknown): item is CategoryStudyState => {
   if (!item || typeof item !== 'object') return false;
   const state = item as Partial<CategoryStudyState>;
-  return (
-    typeof state.introducedCount === 'number' &&
-    typeof state.lastIntroducedDate === 'string' &&
-    typeof state.cards === 'object' && state.cards !== null
-  );
+  
+  // Check if all card values have the required fields
+  if (typeof state.cards === 'object' && state.cards !== null) {
+    const cardEntries = Object.entries(state.cards);
+    const allValid = cardEntries.every(([, card]) => {
+      return (
+        typeof card === 'object' &&
+        card !== null &&
+        typeof (card as any).id === 'number' &&
+        typeof (card as any).category === 'string' &&
+        typeof (card as any).box === 'number' &&
+        typeof (card as any).createdAt === 'string' &&
+        typeof (card as any).nextReviewDate === 'string' &&
+        typeof (card as any).lastReviewedDate === 'string' &&
+        typeof (card as any).reviewCount === 'number'
+      );
+    });
+    return allValid && typeof state.introducedCount === 'number' && typeof state.lastIntroducedDate === 'string';
+  }
+  return false;
 };
 
 const isSavedProgress = (item: unknown): item is SavedProgress => {
@@ -66,21 +81,22 @@ const migrateLegacyProgress = (cards: CollocationCard[], item: unknown): SavedPr
     };
   }
 
+  const today = getTodayString();
   legacy.cards.forEach((entry) => {
     const card = cards.find((item) => item.id === entry.id);
     if (!card) return;
     const categoryState = categoryStates[card.category] ?? getDefaultCategoryState();
     categoryState.cards[card.id] = {
       id: card.id,
+      category: card.category,
       box: (entry.box as 1 | 2 | 3 | 4 | 5) ?? 1,
-      lastReviewed: entry.lastReviewed ?? '',
-      nextReviewAt: getTodayString(),
-      reviewCount: entry.reviewCount ?? 0,
-      createdAt: getTodayString(),
-      introducedOn: getTodayString()
+      createdAt: today,
+      nextReviewDate: today,
+      lastReviewedDate: entry.lastReviewed ?? '',
+      reviewCount: entry.reviewCount ?? 0
     };
     categoryState.introducedCount = Math.max(categoryState.introducedCount, 1);
-    categoryState.lastIntroducedDate = getTodayString();
+    categoryState.lastIntroducedDate = today;
     categoryStates[card.category] = categoryState;
   });
 

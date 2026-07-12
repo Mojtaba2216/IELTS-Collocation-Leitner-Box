@@ -2,7 +2,7 @@ import type { CollocationCard, LocaleKey } from '../types';
 
 type CardStatus = {
   box: 1 | 2 | 3 | 4 | 5;
-  lastReviewed: string;
+  lastReviewedDate: string;
 };
 
 type Props = {

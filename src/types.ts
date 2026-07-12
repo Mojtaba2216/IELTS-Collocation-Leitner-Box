@@ -13,12 +13,12 @@ export type LocaleKey = 'fa';
 
 export type ReviewCardState = {
   id: number;
+  category: string;
   box: 1 | 2 | 3 | 4 | 5;
-  lastReviewed: string;
-  nextReviewAt: string;
-  reviewCount: number;
   createdAt: string;
-  introducedOn: string;
+  nextReviewDate: string;
+  lastReviewedDate: string;
+  reviewCount: number;
 };
 
 export type CategoryStudyState = {
