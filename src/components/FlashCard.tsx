@@ -9,7 +9,7 @@ type Props = {
   labels: { [key: string]: string | string[] };
 };
 
-const FlashCard = ({ card, showAnswer, onToggleAnswer, onAnswer, isReview, labels }: Props) => {
+const FlashCard = ({ card, showAnswer, onToggleAnswer, onAnswer }: Props) => {
   if (!card) {
     return (
       <div className="glass-card empty-state">
@@ -19,9 +19,19 @@ const FlashCard = ({ card, showAnswer, onToggleAnswer, onAnswer, isReview, label
     );
   }
 
+  const handleCardClick = () => {
+    if (!showAnswer) {
+      onToggleAnswer();
+    }
+  };
+
+  const handleButtonClick = (event: React.MouseEvent<HTMLButtonElement>, response: 'wrong' | 'hard' | 'correct') => {
+    event.stopPropagation();
+    onAnswer(response);
+  };
+
   return (
-    <div className={`flashcard ${showAnswer ? 'flipped' : ''}`}>
-      {/* Front of card */}
+    <div className={`flashcard ${showAnswer ? 'flipped' : ''}`} onClick={handleCardClick}>
       <div className="card-panel card-front">
         <div className="flashcard-header">
           <span className="flashcard-tag">{card.category}</span>
@@ -30,15 +40,10 @@ const FlashCard = ({ card, showAnswer, onToggleAnswer, onAnswer, isReview, label
 
         <div className="flashcard-main">
           <h2>{card.english}</h2>
-          <p className="flashcard-prompt">برای دیدن معنی ضربه بزنید</p>
+          <p className="flashcard-prompt">برای دیدن پاسخ روی کارت کلیک کنید</p>
         </div>
-
-        <button className="btn btn-show-answer" onClick={onToggleAnswer}>
-          📖 دیدن پاسخ
-        </button>
       </div>
 
-      {/* Back of card */}
       <div className="card-panel card-back">
         <div className="flashcard-header">
           <span className="flashcard-tag">{card.category}</span>
@@ -64,13 +69,13 @@ const FlashCard = ({ card, showAnswer, onToggleAnswer, onAnswer, isReview, label
         </div>
 
         <div className="flashcard-actions response-buttons">
-          <button className="btn btn-wrong" onClick={() => onAnswer('wrong')}>
+          <button className="btn btn-wrong" onClick={(event) => handleButtonClick(event, 'wrong')}>
             ❌ بلد نبودم
           </button>
-          <button className="btn btn-hard" onClick={() => onAnswer('hard')}>
+          <button className="btn btn-hard" onClick={(event) => handleButtonClick(event, 'hard')}>
             😐 سخت بود
           </button>
-          <button className="btn btn-correct" onClick={() => onAnswer('correct')}>
+          <button className="btn btn-correct" onClick={(event) => handleButtonClick(event, 'correct')}>
             ✅ یاد گرفتم
           </button>
         </div>

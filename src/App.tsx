@@ -1,90 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import rawCollocations from './data/collocations.cleaned.json';
-import { moveCard, initializeStatuses, type CardStatusMap } from './utils/leitnerAlgorithm';
-import { loadProgress, saveProgress, type ReviewHistoryEntry } from './utils/storage';
+import {
+  applyReviewResponse,
+  buildDailyReviewSummary,
+  ensureAllCategoryStates,
+  getDefaultCategoryState,
+  getTodayString
+} from './utils/leitnerAlgorithm';
+import { loadProgress, saveProgress } from './utils/storage';
 import FlashCard from './components/FlashCard';
-import Dashboard from './components/Dashboard';
 import LeitnerBox from './components/LeitnerBox';
-import type { LocaleKey, CollocationCard } from './types';
+import type { CollocationCard, SavedProgress } from './types';
+
+type Tab = 'home' | 'study' | 'categories';
+type Card = typeof collocations[number];
 
 const collocations = rawCollocations as CollocationCard[];
-
-const locales = {
-  fa: {
-    appTitle: 'جعبه لایتنر کالوکیشن‌های IELTS',
-    appDescription: 'سیستم حرفه‌ای برای یادگیری کالوکیشن‌های IELTS با روش علمی لایتنر',
-    homeTitle: 'آغاز کنید',
-    learnTitle: 'یادگیری سریع‌تر',
-    learnDesc: 'کارت‌ها را مرور کنید و کالوکیشن‌های IELTS خود را قوی‌تر کنید.',
-    continueStudy: 'ادامه مطالعه',
-    chooseCategory: 'انتخاب دسته',
-    categories: 'دسته‌ها',
-    categoriesDesc: 'یک موضوع را انتخاب کنید و بر روی کالوکیشن‌های خاص تمرکز کنید.',
-    backHome: 'بازگشت به خانه',
-    studyingAll: 'مطالعه از تمام دسته‌ها',
-    flashcardReview: 'مرور کارت فلش',
-    completedAll: 'تمام کارت‌های این دسته تسلط کامل یافتند! 🎉',
-    todayReview: 'مرور امروز',
-    itemsPending: 'مورد منتظر',
-    dailyStreak: 'تعداد روز متوالی',
-    totalCards: 'مجموع کارت‌ها',
-    mastered: 'تسلط یافته',
-    progress: 'درصد',
-    learnedAll: 'تمام کارت‌های این دسته تسلط یافتند.',
-    startLearning: 'شروع یادگیری',
-    allTopics: 'تمام موضوعات',
-    phrases: 'عبارت',
-    learned: 'یادگرفته',
-    home: 'خانه',
-    study: 'مطالعه',
-    topics: 'دسته‌ها',
-    showAnswer: 'دیدن پاسخ',
-    didntKnow: 'بلد نبودم',
-    difficult: 'سخت بود',
-    mastered_button: 'یاد گرفتم',
-    meaningFarsi: 'معنی فارسی',
-    pronunciation: 'تلفظ',
-    example: 'مثال (IELTS Writing)',
-  },
-  en: {
-    appTitle: 'IELTS Collocation Leitner Box',
-    appDescription: 'Professional system for learning IELTS collocations with Leitner method',
-    homeTitle: 'Dashboard',
-    learnTitle: 'Learn faster',
-    learnDesc: 'Swipe through cards and boost your IELTS collocations.',
-    continueStudy: 'Continue study',
-    chooseCategory: 'Choose category',
-    categories: 'Categories',
-    categoriesDesc: 'Select a topic and focus on specific collocations.',
-    backHome: 'Back home',
-    studyingAll: 'Studying all categories',
-    flashcardReview: 'Flashcard review',
-    completedAll: 'All cards in this category are mastered! 🎉',
-    todayReview: 'Today\'s review',
-    itemsPending: 'items pending',
-    dailyStreak: 'Daily streak',
-    totalCards: 'Total cards',
-    mastered: 'Mastered',
-    progress: 'Progress',
-    learnedAll: 'All cards learned.',
-    startLearning: 'Start learning',
-    allTopics: 'All topics',
-    phrases: 'phrases',
-    learned: 'learned',
-    home: 'Home',
-    study: 'Study',
-    topics: 'Topics',
-    showAnswer: 'Show answer',
-    didntKnow: 'Didn\'t know',
-    difficult: 'Difficult',
-    mastered_button: 'Mastered',
-    meaningFarsi: 'Meaning',
-    pronunciation: 'Pronunciation',
-    example: 'Example',
-  }
-};
-
-type Card = typeof collocations[number];
 
 const categoryIcons: Record<string, string> = {
   'محیط‌زیست': '🌍',
@@ -98,143 +29,329 @@ const categoryIcons: Record<string, string> = {
   'حقوق اجتماعی': '👥',
 };
 
-const App = () => {
-  const [initialProgress] = useState(() => loadProgress(collocations));
-  const [locale] = useState<LocaleKey>('fa');
-  const [tab, setTab] = useState<'home' | 'study' | 'categories'>('home');
-  const [selectedCategory, setSelectedCategory] = useState<string>(initialProgress.selectedCategory);
-  const [statuses, setStatuses] = useState<CardStatusMap>(() => {
-    const initialStatuses = initializeStatuses(collocations);
-    initialProgress.cards.forEach((card) => {
-      initialStatuses[card.id] = {
-        box: card.box as 1 | 2 | 3 | 4 | 5,
-        lastReviewed: card.lastReviewed
-      };
-    });
-    return initialStatuses;
-  });
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [reviewIndex, setReviewIndex] = useState(0);
-  const [streak, setStreak] = useState(initialProgress.streak);
-  const [lastStreakDate, setLastStreakDate] = useState(initialProgress.lastStreakDate);
-  const [reviewHistory, setReviewHistory] = useState<ReviewHistoryEntry[]>(initialProgress.reviewHistory);
+const boxMeta = [
+  { key: 1, title: '📦 جعبه ۱', subtitle: 'یادگیری اولیه', icon: '📦' },
+  { key: 2, title: '📦 جعبه ۲', subtitle: 'مرور کوتاه مدت', icon: '⏱️' },
+  { key: 3, title: '📦 جعبه ۳', subtitle: 'تثبیت یادگیری', icon: '🧠' },
+  { key: 4, title: '📦 جعبه ۴', subtitle: 'یادگیری عمیق', icon: '🔍' },
+  { key: 5, title: '📦 جعبه ۵', subtitle: 'تسلط کامل', icon: '🏁' }
+];
+
+const categoryNames = Array.from(new Set(collocations.map((card) => card.category))).sort();
+const initialStoredProgress = loadProgress(collocations);
+const initialCategory = initialStoredProgress.selectedCategory && categoryNames.includes(initialStoredProgress.selectedCategory)
+  ? initialStoredProgress.selectedCategory
+  : categoryNames[0] ?? 'All';
+
+const locales = {
+  fa: {
+    appTitle: 'جعبه لایتنر کالوکیشن‌های IELTS',
+    appDescription: 'سیستم مرور روزانه و جعبه لایتنر برای کالوکیشن‌های آیلتس',
+    todayReview: 'مرور امروز',
+    todayIntro: 'یک جلسه هدفمند برای تثبیت کالوکیشن‌ها',
+    goToStudy: 'شروع مرور',
+    selectCategory: 'انتخاب دسته',
+    studyToday: 'مرور امروز',
+    studySummary: 'کارت‌های امروز',
+    reviewCount: 'خلاصه امروز',
+    home: 'خانه',
+    study: 'مطالعه',
+    topics: 'دسته‌ها',
+    chooseCategory: 'انتخاب دسته',
+    categories: 'جعبه لایتنر هر دسته',
+    categoryDesc: 'هر دسته وضعیت مستقل خود را دارد.',
+    todayCards: 'کارت امروز',
+    newCards: 'کارت‌های جدید',
+    readyToReview: 'آماده مرور',
+    totalToday: 'مجموع امروز',
+    currentBox: 'جعبه فعلی',
+    boxLabel: 'جعبه',
+    cardOf: 'کارت',
+    from: 'از',
+    reviewFinished: 'کارت‌های امروز تمام شده‌اند. برای مرور بعدی آماده باشید.',
+    finishStudy: 'پایان مطالعه',
+    remainingToday: 'کارت باقی‌مانده امروز',
+    sessionSaved: 'پیشرفت این جلسه ذخیره شد.',
+    viewCards: 'مشاهده کارت‌ها',
+    backHome: 'بازگشت به خانه',
+    continueReview: 'ادامه مرور',
+    todayCardsSummary: 'کارت‌های امروز',
+    reviewedCount: 'بررسی شده',
+    remainingCount: 'باقی‌مانده',
+    startTodayReview: 'شروع مرور امروز',
+    reviewAgainToday: 'مرور مجدد کارت‌های امروز',
+    viewBoxes: 'مشاهده جعبه‌های لایتنر',
+    reviewAgainHint: 'فقط تمرین و تثبیت بدون تغییر جعبه',
+    noReviewAgainCards: 'هنوز کارتی برای مرور مجدد امروز ثبت نشده است.'
+  }
+};
+
+type CustomSelectProps = {
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+  className?: string;
+};
+
+const CustomSelect = ({ value, options, onChange, className = '' }: CustomSelectProps) => {
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    saveProgress({
-      cards: collocations.map((card) => ({
-        id: card.id,
-        box: statuses[card.id]?.box ?? 1,
-        mastered: (statuses[card.id]?.box ?? 1) === 5,
-        reviewCount: 0,
-        lastReviewed: statuses[card.id]?.lastReviewed ?? ''
-      })),
-      selectedCategory,
-      statistics: {
-        totalCards: collocations.length,
-        masteredCards: collocations.filter((card) => statuses[card.id]?.box === 5).length,
-        learnedPercent: collocations.length ? Math.round((collocations.filter((card) => statuses[card.id]?.box === 5).length / collocations.length) * 100) : 0,
-        dueToday: collocations.filter((card) => statuses[card.id]?.box !== 5).length
-      },
-      reviewHistory,
-      locale,
-      streak,
-      lastStreakDate
-    });
-  }, [statuses, selectedCategory, locale, streak, lastStreakDate, reviewHistory]);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.custom-select')) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? options[0]?.label ?? '';
+
+  return (
+    <div className={`custom-select ${className}`.trim()}>
+      <button
+        type="button"
+        className="custom-select-trigger"
+        onMouseDown={(event) => event.preventDefault()}
+        onTouchStart={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+        aria-expanded={open}
+      >
+        <span>{selectedLabel}</span>
+        <span className="custom-select-arrow">{open ? '▴' : '▾'}</span>
+      </button>
+
+      {open ? (
+        <div className="custom-select-menu" role="listbox">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`custom-select-option ${option.value === value ? 'active' : ''}`}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+const App = () => {
+  const [progress, setProgress] = useState<SavedProgress>(() => ({
+    ...initialStoredProgress,
+    categoryStates: ensureAllCategoryStates(initialStoredProgress.categoryStates, collocations, getTodayString(), 10)
+  }));
+  const [tab, setTab] = useState<Tab>('home');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [sessionReviewedCount, setSessionReviewedCount] = useState(0);
+  const [sessionTotalToday, setSessionTotalToday] = useState(0);
+  const [sessionSummary, setSessionSummary] = useState<string | null>(null);
+  const [studyMode, setStudyMode] = useState<'standard' | 'again'>('standard');
+
+  const t = locales.fa;
+  const today = getTodayString();
 
   const categories = useMemo(() => {
-    const counts = collocations.reduce<Record<string, number>>((acc, card) => {
-      acc[card.category] = (acc[card.category] || 0) + 1;
-      return acc;
-    }, {});
-
-    return Object.keys(counts).sort().map((category) => ({
+    return categoryNames.map((category) => ({
       name: category,
-      count: counts[category],
       icon: categoryIcons[category] || '⭐'
     }));
   }, []);
 
-  const filteredCards = useMemo(() => {
-    if (selectedCategory === 'All') return collocations;
+  useEffect(() => {
+    saveProgress(progress);
+  }, [progress]);
+
+  useEffect(() => {
+    setProgress((prev) => ({
+      ...prev,
+      categoryStates: ensureAllCategoryStates(prev.categoryStates, collocations, today, 10)
+    }));
+  }, [today]);
+
+  useEffect(() => {
+    setShowAnswer(false);
+    setReviewIndex(0);
+    setStudyMode('standard');
+  }, [selectedCategory]);
+
+  const currentCategoryState = progress.categoryStates[selectedCategory] ?? getDefaultCategoryState();
+  const selectedCategoryCards = useMemo(() => {
     return collocations.filter((card) => card.category === selectedCategory);
   }, [selectedCategory]);
 
-  const dueCards = useMemo(
-    () => filteredCards.filter((card) => statuses[card.id]?.box !== 5),
-    [filteredCards, statuses]
-  );
+  const dailySummary = useMemo(() => {
+    return buildDailyReviewSummary(currentCategoryState, selectedCategoryCards, today);
+  }, [currentCategoryState, selectedCategoryCards, today]);
+
+  const reviewCards = useMemo(() => {
+    return dailySummary.queue
+      .map((entry) => selectedCategoryCards.find((card) => card.id === entry.id))
+      .filter((card): card is Card => Boolean(card));
+  }, [dailySummary.queue, selectedCategoryCards]);
+
+  const reviewAgainCards = useMemo(() => {
+    return Array.from(
+      new Set(
+        progress.reviewHistory
+          .filter((entry) => entry.category === selectedCategory && entry.timestamp.startsWith(today))
+          .map((entry) => entry.cardId)
+      )
+    )
+      .map((id) => selectedCategoryCards.find((card) => card.id === id))
+      .filter((card): card is Card => Boolean(card));
+  }, [progress.reviewHistory, selectedCategory, selectedCategoryCards, today]);
+
+  const reviewModeCards = studyMode === 'again' ? reviewAgainCards : reviewCards;
 
   useEffect(() => {
-    if (reviewIndex >= dueCards.length) {
+    if (reviewIndex >= reviewModeCards.length) {
       setReviewIndex(0);
     }
-  }, [dueCards.length, reviewIndex]);
+  }, [reviewModeCards.length, reviewIndex]);
 
-  const currentCard = dueCards.length > 0 ? dueCards[reviewIndex % dueCards.length] : null;
+  const currentCard = reviewModeCards[reviewIndex] ?? null;
+  const currentCardState = currentCard ? currentCategoryState.cards[currentCard.id] : null;
+  const dailyBatchSize = 10;
+  const todayCardCount = Math.max(0, reviewModeCards.length || sessionTotalToday || dailyBatchSize);
+  const readyToReviewCount = Math.max(0, dailySummary.summary.total - dailyBatchSize);
+  const totalTodayCards = dailyBatchSize + readyToReviewCount;
+  const remainingToday = Math.max(0, reviewModeCards.length - sessionReviewedCount);
 
-  const boxCounts = useMemo(
-    () => [1, 2, 3, 4, 5].map((box) => filteredCards.filter((card) => statuses[card.id]?.box === box).length),
-    [filteredCards, statuses]
-  );
+  const reviewStats = [
+    { label: t.newCards, value: dailyBatchSize, icon: '✨' },
+    { label: t.readyToReview, value: readyToReviewCount, icon: '🧠' },
+    { label: t.totalToday, value: totalTodayCards, icon: '📅' }
+  ];
 
-  const learnedCount = filteredCards.filter((card) => statuses[card.id]?.box === 5).length;
-  const totalCount = filteredCards.length;
-  const progressPercent = totalCount > 0 ? Math.round((learnedCount / totalCount) * 100) : 0;
-  const overallLearned = collocations.filter((card) => statuses[card.id]?.box === 5).length;
-  const totalAll = collocations.length;
-  const overallPercent = totalAll ? Math.round((overallLearned / totalAll) * 100) : 0;
-  const today = new Date().toISOString().slice(0, 10);
+  const handleCategorySelection = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    setSessionTotalToday(dailyBatchSize);
+    setSessionReviewedCount(0);
+    setSessionSummary(null);
+    setReviewIndex(0);
+    setShowAnswer(false);
+    setStudyMode('standard');
+  };
 
-  const t = locales.fa;
+  const handleStartStudy = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    setSessionTotalToday(dailyBatchSize);
+    setSessionReviewedCount(0);
+    setSessionSummary(null);
+    setReviewIndex(0);
+    setShowAnswer(false);
+    setStudyMode('standard');
+    setTab('study');
+  };
+
+  const handleReviewAgain = () => {
+    setStudyMode('again');
+    setSessionReviewedCount(0);
+    setSessionSummary(null);
+    setReviewIndex(0);
+    setShowAnswer(false);
+  };
+
+  const handleViewBoxes = () => {
+    setTab('categories');
+    setStudyMode('standard');
+  };
 
   const handleAnswer = (response: 'wrong' | 'hard' | 'correct') => {
     if (!currentCard) return;
 
-    const nextBox = moveCard(statuses[currentCard.id], response);
     const reviewedAt = new Date().toISOString();
 
-    setStatuses((prev) => ({
-      ...prev,
-      [currentCard.id]: {
-        box: Math.min(5, Math.max(1, nextBox)) as 1 | 2 | 3 | 4 | 5,
-        lastReviewed: reviewedAt
-      }
-    }));
+    if (studyMode === 'again') {
+      setProgress((prev) => ({
+        ...prev,
+        reviewHistory: [
+          { cardId: currentCard.id, category: selectedCategory, response, timestamp: reviewedAt },
+          ...prev.reviewHistory
+        ].slice(0, 200),
+        selectedCategory
+      }));
+    } else {
+      const nextCardState = applyReviewResponse(
+        currentCategoryState.cards[currentCard.id] ?? {
+          id: currentCard.id,
+          box: 1,
+          lastReviewed: '',
+          nextReviewAt: today,
+          reviewCount: 0,
+          createdAt: today,
+          introducedOn: today
+        },
+        response,
+        today,
+        today
+      );
 
-    setReviewHistory((prev) => [
-      { cardId: currentCard.id, response, timestamp: reviewedAt },
-      ...prev
-    ]);
+      setProgress((prev) => {
+        const categoryState = prev.categoryStates[selectedCategory] ?? getDefaultCategoryState();
+        const nextCategoryState = {
+          ...categoryState,
+          cards: {
+            ...categoryState.cards,
+            [currentCard.id]: nextCardState
+          }
+        };
 
-    if (lastStreakDate !== today) {
-      setStreak((value) => value + 1);
-      setLastStreakDate(today);
+        const nextCategoryStates = {
+          ...prev.categoryStates,
+          [selectedCategory]: nextCategoryState
+        };
+
+        const nextHistory = [
+          { cardId: currentCard.id, category: selectedCategory, response, timestamp: reviewedAt },
+          ...prev.reviewHistory
+        ].slice(0, 200);
+
+        const nextStreak = prev.lastStreakDate !== today ? prev.streak + 1 : prev.streak;
+
+        return {
+          ...prev,
+          categoryStates: nextCategoryStates,
+          reviewHistory: nextHistory,
+          streak: nextStreak,
+          lastStreakDate: prev.lastStreakDate !== today ? today : prev.lastStreakDate,
+          selectedCategory
+        };
+      });
     }
 
+    setSessionReviewedCount((count) => count + 1);
     setShowAnswer(false);
-    setReviewIndex((prevIndex) => (dueCards.length > 1 ? (prevIndex + 1) % dueCards.length : 0));
+    setReviewIndex((prev) => (reviewModeCards.length > 1 ? (prev + 1) % reviewModeCards.length : 0));
   };
 
-  const categoryProgress = useMemo(
-    () => ({
-      value: progressPercent,
-      label: `${progressPercent}%`
-    }),
-    [progressPercent]
-  );
+  const handleFinishStudy = () => {
+    const reviewedCount = sessionReviewedCount;
+    const pendingCount = Math.max(0, reviewModeCards.length - reviewedCount);
+    const modeLabel = studyMode === 'again' ? 'در حالت مرور مجدد' : 'در مرور اصلی';
+    setSessionSummary(`${reviewedCount} کارت امروز بررسی شد ${modeLabel}. ${pendingCount > 0 ? `کارت‌های باقی‌مانده (${pendingCount}) برای مرور بعدی ذخیره شدند.` : 'همه کارت‌های این جلسه بررسی شدند.'}`);
+    setShowAnswer(false);
+  };
 
-  const categoryCards = categories.map((category) => {
-    const categoryCards = collocations.filter((card) => card.category === category.name);
-    const learned = categoryCards.filter((card) => statuses[card.id]?.box === 5).length;
-    const percent = categoryCards.length ? Math.round((learned / categoryCards.length) * 100) : 0;
-    return {
-      ...category,
-      percent,
-      learned,
-      total: categoryCards.length
-    };
-  });
+  const categoryBoxCounts = (categoryName: string) => {
+    const state = progress.categoryStates[categoryName] ?? getDefaultCategoryState();
+    return [1, 2, 3, 4, 5].map((box) => Object.values(state.cards).filter((card) => card.box === box).length);
+  };
 
   return (
     <div className="app-wrapper">
@@ -251,93 +368,151 @@ const App = () => {
                 {tab === 'home' && (
                   <>
                     <section className="glass-card hero-card">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+                      <div className="hero-top-row">
                         <div>
-                          <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', padding: '6px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', display: 'inline-block', marginBottom: '12px' }}>
-                            {t.todayReview}
+                          <div className="study-pill">{t.todayReview}</div>
+                          <h2>{t.todayIntro}</h2>
+                          <p>جلسه‌ای کوتاه، منظم و شبیه اپ‌های آموزشی حرفه‌ای.</p>
+                        </div>
+                        <button className="primary-pill" onClick={() => handleStartStudy(selectedCategory)}>
+                          {t.goToStudy}
+                        </button>
+                      </div>
+
+                      <div className="mini-stat-grid">
+                        {reviewStats.map((stat) => (
+                          <div key={stat.label} className="mini-stat-card">
+                            <span className="mini-stat-icon">{stat.icon}</span>
+                            <div>
+                              <strong>{stat.value}</strong>
+                              <p>{stat.label}</p>
+                            </div>
                           </div>
-                          <h2 style={{ fontSize: '28px', fontWeight: '700', marginTop: '8px' }}>
-                            {dueCards.length} {t.itemsPending}
-                          </h2>
-                        </div>
-                        <div className="circle-ring">
-                          {overallPercent}%
-                        </div>
+                        ))}
                       </div>
 
-                      <div className="hero-metrics">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderRadius: '16px', background: 'rgba(255, 255, 255, 0.05)' }}>
-                          <span style={{ color: '#cbd5e1' }}>{t.dailyStreak}</span>
-                          <strong style={{ fontSize: '18px' }}>{streak} 🔥</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderRadius: '16px', background: 'rgba(255, 255, 255, 0.05)' }}>
-                          <span style={{ color: '#cbd5e1' }}>{t.mastered}</span>
-                          <strong style={{ fontSize: '18px', color: '#3b82f6' }}>{overallLearned}/{totalAll}</strong>
-                        </div>
+                      <div className="hero-control-row">
+                        <label className="field-label">{t.selectCategory}</label>
+                        <CustomSelect
+                          value={selectedCategory}
+                          options={categories.map((category) => ({ value: category.name, label: category.name }))}
+                          onChange={handleCategorySelection}
+                        />
                       </div>
-                    </section>
-
-                    <section style={{ padding: '0 4px' }}>
-                      <div style={{ marginBottom: '16px' }}>
-                        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px' }}>{t.learnTitle}</h2>
-                        <p style={{ color: '#cbd5e1', fontSize: '14px' }}>{t.learnDesc}</p>
-                      </div>
-                      <button 
-                        className="primary-pill"
-                        onClick={() => setTab('study')}
-                        style={{ padding: '14px 20px', fontSize: '16px' }}
-                      >
-                        → {t.continueStudy}
-                      </button>
                     </section>
 
                     <section className="glass-card">
-                      <div style={{ marginBottom: '16px' }}>
-                        <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>📊 جعبه‌های لایتنر</h3>
-                        <p style={{ color: '#cbd5e1', fontSize: '13px' }}>دسته‌بندی کارت‌های فعلی</p>
+                      <div className="section-heading">
+                        <div>
+                          <h3>جعبه‌های لایتنر</h3>
+                          <p>هر جعبه نقش مشخصی در تثبیت یادگیری دارد.</p>
+                        </div>
                       </div>
-                      <LeitnerBox boxCounts={boxCounts} labels={[]} />
+                      <LeitnerBox
+                        boxes={boxMeta.map((box, index) => ({
+                          ...box,
+                          count: categoryBoxCounts(selectedCategory)[index]
+                        }))}
+                        onView={() => setTab('study')}
+                      />
                     </section>
-
-                    <Dashboard
-                      totalCards={totalAll}
-                      learned={overallLearned}
-                      reviewToday={dueCards.length}
-                      progress={overallPercent}
-                      categoryProgress={categoryProgress}
-                      currentCategory={selectedCategory}
-                      streak={streak}
-                    />
                   </>
                 )}
 
                 {tab === 'study' && (
                   <>
-                    <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '16px' }}>
+                    <section className="study-toolbar">
                       <div>
-                        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px' }}>{t.flashcardReview}</h2>
-                        <p style={{ color: '#cbd5e1', fontSize: '14px' }}>
-                          {selectedCategory === 'All' ? t.studyingAll : selectedCategory}
-                        </p>
+                        <h2>{t.studyToday}</h2>
+                        <p>{selectedCategory} • {todayCardCount} {t.todayCards}</p>
                       </div>
-                      <button className="secondary-pill" onClick={() => setTab('categories')} style={{ whiteSpace: 'nowrap' }}>
-                        {t.chooseCategory}
-                      </button>
+                      <CustomSelect
+                        value={selectedCategory}
+                        options={categories.map((category) => ({ value: category.name, label: category.name }))}
+                        onChange={handleCategorySelection}
+                        className="compact"
+                      />
                     </section>
 
-                    {dueCards.length > 0 ? (
-                      <FlashCard
-                        card={currentCard}
-                        showAnswer={showAnswer}
-                        onToggleAnswer={() => setShowAnswer((current) => !current)}
-                        onAnswer={handleAnswer}
-                        isReview={true}
-                        labels={t as any}
-                      />
+                    <div className="study-action-grid">
+                      <button className={`study-action-button ${studyMode === 'standard' ? 'active' : ''}`} onClick={() => {
+                        setStudyMode('standard');
+                        setSessionReviewedCount(0);
+                        setSessionSummary(null);
+                        setReviewIndex(0);
+                        setShowAnswer(false);
+                      }}>{t.startTodayReview}</button>
+                      <button className={`study-action-button ${studyMode === 'again' ? 'active' : ''}`} onClick={handleReviewAgain}>{t.reviewAgainToday}</button>
+                      <button className="study-action-button" onClick={handleViewBoxes}>{t.viewBoxes}</button>
+                    </div>
+
+                    <div className="study-status-card">
+                      <div className="study-status-block">
+                        <span className="study-status-title">📚 {t.todayReview}</span>
+                        <strong>{todayCardCount}</strong>
+                        <p>{t.todayCardsSummary}</p>
+                      </div>
+                      <div className="study-status-block">
+                        <span className="study-status-title">✅ {t.reviewedCount}</span>
+                        <strong>{sessionReviewedCount}</strong>
+                        <p>{t.reviewedCount}</p>
+                      </div>
+                      <div className="study-status-block">
+                        <span className="study-status-title">⏳ {t.remainingCount}</span>
+                        <strong>{remainingToday}</strong>
+                        <p>{t.remainingToday}</p>
+                      </div>
+                    </div>
+
+                    {studyMode === 'again' && reviewAgainCards.length === 0 ? (
+                      <div className="glass-card empty-state">
+                        <div className="empty-state-icon">🔁</div>
+                        <p>{t.noReviewAgainCards}</p>
+                      </div>
+                    ) : sessionSummary ? (
+                      <div className="glass-card finish-session-card">
+                        <div className="finish-session-icon">✅</div>
+                        <h3>{sessionSummary}</h3>
+                        <p>{t.sessionSaved}</p>
+                        <div className="finish-session-actions">
+                          <button className="primary-pill" onClick={() => setTab('home')}>{t.backHome}</button>
+                          <button className="secondary-pill" onClick={() => {
+                            setSessionReviewedCount(0);
+                            setSessionSummary(null);
+                            setReviewIndex(0);
+                            setShowAnswer(false);
+                          }}>{t.continueReview}</button>
+                        </div>
+                      </div>
+                    ) : reviewModeCards.length > 0 ? (
+                      <>
+                        <div className="study-meta">
+                          <span>{t.cardOf} {Math.min(reviewIndex + 1, reviewModeCards.length)} {t.from} {reviewModeCards.length}</span>
+                          <span>{t.currentBox}: {currentCardState?.box ?? 1}</span>
+                        </div>
+                        {studyMode === 'again' ? (
+                          <div className="study-mode-hint">{t.reviewAgainHint}</div>
+                        ) : null}
+                        <FlashCard
+                          card={currentCard}
+                          showAnswer={showAnswer}
+                          onToggleAnswer={() => setShowAnswer((current) => !current)}
+                          onAnswer={handleAnswer}
+                          isReview={true}
+                          labels={t as any}
+                        />
+                        <div className="study-footer">
+                          <div>
+                            <strong>{remainingToday} {t.remainingToday}</strong>
+                            <p>{t.sessionSaved}</p>
+                          </div>
+                          <button className="secondary-pill" onClick={handleFinishStudy}>{t.finishStudy}</button>
+                        </div>
+                      </>
                     ) : (
                       <div className="glass-card empty-state">
                         <div className="empty-state-icon">🎉</div>
-                        <p>{t.completedAll}</p>
+                        <p>{t.reviewFinished}</p>
                       </div>
                     )}
                   </>
@@ -345,40 +520,39 @@ const App = () => {
 
                 {tab === 'categories' && (
                   <>
-                    <section style={{ marginBottom: '16px' }}>
-                      <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px' }}>{t.categories}</h2>
-                      <p style={{ color: '#cbd5e1', fontSize: '14px' }}>{t.categoriesDesc}</p>
+                    <section className="study-toolbar">
+                      <div>
+                        <h2>{t.categories}</h2>
+                        <p>{t.categoryDesc}</p>
+                      </div>
                     </section>
 
                     <div className="categories-grid">
-                      <div 
-                        className="category-card"
-                        onClick={() => { setSelectedCategory('All'); setTab('study'); }}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <div className="category-icon">✨</div>
-                        <div className="category-name">{t.allTopics}</div>
-                        <div className="category-count">{totalAll} {t.phrases} · {overallPercent}% {t.learned}</div>
-                        <div className="category-progress" style={{ marginTop: '12px' }}>
-                          <div className="category-progress-bar" style={{ width: `${overallPercent}%` }}></div>
-                        </div>
-                      </div>
-
-                      {categoryCards.map((category) => (
-                        <div 
-                          key={category.name}
-                          className="category-card"
-                          onClick={() => { setSelectedCategory(category.name); setTab('study'); }}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <div className="category-icon">{category.icon}</div>
-                          <div className="category-name">{category.name}</div>
-                          <div className="category-count">{category.total} {t.phrases} · {category.percent}% {t.learned}</div>
-                          <div className="category-progress" style={{ marginTop: '12px' }}>
-                            <div className="category-progress-bar" style={{ width: `${category.percent}%` }}></div>
-                          </div>
-                        </div>
-                      ))}
+                      {categories.map((category) => {
+                        const categoryItemCards = collocations.filter((card) => card.category === category.name);
+                        return (
+                          <button
+                            key={category.name}
+                            className="category-summary-card"
+                            onClick={() => handleStartStudy(category.name)}
+                          >
+                            <div className="category-summary-head">
+                              <span className="category-icon">{category.icon}</span>
+                              <div>
+                                <h3>{category.name}</h3>
+                                <p>{categoryItemCards.length} کارت</p>
+                              </div>
+                            </div>
+                            <LeitnerBox
+                              boxes={boxMeta.map((box, index) => ({
+                                ...box,
+                                count: categoryBoxCounts(category.name)[index]
+                              }))}
+                              onView={() => handleStartStudy(category.name)}
+                            />
+                          </button>
+                        );
+                      })}
                     </div>
                   </>
                 )}
@@ -389,27 +563,15 @@ const App = () => {
       </main>
 
       <nav className="bottom-nav">
-        <button 
-          className={`nav-item ${tab === 'home' ? 'active' : ''}`} 
-          onClick={() => setTab('home')}
-          style={{ color: tab === 'home' ? '#3b82f6' : '#cbd5e1' }}
-        >
+        <button className={`nav-item ${tab === 'home' ? 'active' : ''}`} onClick={() => setTab('home')}>
           <span className="nav-icon">🏠</span>
           <span>{t.home}</span>
         </button>
-        <button 
-          className={`nav-item ${tab === 'study' ? 'active' : ''}`} 
-          onClick={() => setTab('study')}
-          style={{ color: tab === 'study' ? '#3b82f6' : '#cbd5e1' }}
-        >
+        <button className={`nav-item ${tab === 'study' ? 'active' : ''}`} onClick={() => setTab('study')}>
           <span className="nav-icon">📚</span>
           <span>{t.study}</span>
         </button>
-        <button 
-          className={`nav-item ${tab === 'categories' ? 'active' : ''}`} 
-          onClick={() => setTab('categories')}
-          style={{ color: tab === 'categories' ? '#3b82f6' : '#cbd5e1' }}
-        >
+        <button className={`nav-item ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}>
           <span className="nav-icon">🗂️</span>
           <span>{t.topics}</span>
         </button>

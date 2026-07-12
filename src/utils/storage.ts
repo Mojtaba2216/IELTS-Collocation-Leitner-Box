@@ -1,79 +1,26 @@
-import type { CardStatusMap } from './leitnerAlgorithm';
-import type { LocaleKey } from '../types';
+import type { CategoryStudyState, CollocationCard, LocaleKey, ReviewHistoryEntry, SavedProgress } from '../types';
+import { getDefaultCategoryState, getTodayString } from './leitnerAlgorithm';
 
-const STORAGE_KEY = 'ielts-collocation-leitner-state';
-
-export type ReviewHistoryEntry = {
-  cardId: number;
-  response: 'wrong' | 'hard' | 'correct';
-  timestamp: string;
-};
-
-export type CardProgressEntry = {
-  id: number;
-  box: number;
-  mastered: boolean;
-  reviewCount: number;
-  lastReviewed: string;
-};
-
-export type ProgressStats = {
-  totalCards: number;
-  masteredCards: number;
-  learnedPercent: number;
-  dueToday: number;
-};
-
-export type SavedProgress = {
-  cards: CardProgressEntry[];
-  selectedCategory: string;
-  statistics: ProgressStats;
-  reviewHistory: ReviewHistoryEntry[];
-  locale: LocaleKey;
-  streak: number;
-  lastStreakDate: string;
-};
-
-export const buildDefaultStatuses = (cards: { id: number }[]): CardStatusMap => {
-  return cards.reduce<CardStatusMap>((acc, card) => {
-    acc[card.id] = { box: 1, lastReviewed: '' };
-    return acc;
-  }, {});
-};
-
-export const buildProgressFromStatuses = (cards: { id: number }[], statuses: CardStatusMap): CardProgressEntry[] => {
-  return cards.map((card) => {
-    const status = statuses[card.id] ?? { box: 1, lastReviewed: '' };
-    return {
-      id: card.id,
-      box: status.box,
-      mastered: status.box === 5,
-      reviewCount: (status as any).reviewCount ?? 0,
-      lastReviewed: status.lastReviewed || ''
-    };
-  });
-};
-
-export const calculateProgressStats = (cards: { id: number }[], statuses: CardStatusMap): ProgressStats => {
-  const totalCards = cards.length;
-  const masteredCards = cards.filter((card) => statuses[card.id]?.box === 5).length;
-  const dueToday = cards.filter((card) => statuses[card.id]?.box !== 5).length;
-  const learnedPercent = totalCards ? Math.round((masteredCards / totalCards) * 100) : 0;
-
-  return {
-    totalCards,
-    masteredCards,
-    learnedPercent,
-    dueToday
-  };
-};
+const STORAGE_KEY = 'ielts-collocation-leitner-state-v2';
 
 const isReviewHistoryEntry = (item: unknown): item is ReviewHistoryEntry => {
   if (!item || typeof item !== 'object') return false;
+  const entry = item as Partial<ReviewHistoryEntry>;
   return (
-    typeof (item as ReviewHistoryEntry).cardId === 'number' &&
-    ['wrong', 'hard', 'correct'].includes((item as ReviewHistoryEntry).response) &&
-    typeof (item as ReviewHistoryEntry).timestamp === 'string'
+    typeof entry.cardId === 'number' &&
+    typeof entry.category === 'string' &&
+    ['wrong', 'hard', 'correct'].includes((entry.response ?? '') as string) &&
+    typeof entry.timestamp === 'string'
+  );
+};
+
+const isCategoryStudyState = (item: unknown): item is CategoryStudyState => {
+  if (!item || typeof item !== 'object') return false;
+  const state = item as Partial<CategoryStudyState>;
+  return (
+    typeof state.introducedCount === 'number' &&
+    typeof state.lastIntroducedDate === 'string' &&
+    typeof state.cards === 'object' && state.cards !== null
   );
 };
 
@@ -81,30 +28,77 @@ const isSavedProgress = (item: unknown): item is SavedProgress => {
   if (!item || typeof item !== 'object') return false;
   const progress = item as Partial<SavedProgress>;
   return (
-    Array.isArray(progress.cards) &&
     typeof progress.selectedCategory === 'string' &&
     typeof progress.locale === 'string' &&
     typeof progress.streak === 'number' &&
     typeof progress.lastStreakDate === 'string' &&
     Array.isArray(progress.reviewHistory) &&
-    typeof progress.statistics === 'object'
+    typeof progress.categoryStates === 'object' && progress.categoryStates !== null
   );
 };
 
-const isLegacyStorage = (item: unknown): item is { statuses: CardStatusMap; selectedCategory?: string; locale?: LocaleKey; streak?: number; lastStreakDate?: string; reviewHistory?: unknown; progressStats?: ProgressStats } => {
-  if (!item || typeof item !== 'object') return false;
-  const progress = item as any;
-  return typeof progress.statuses === 'object';
+const migrateLegacyProgress = (cards: CollocationCard[], item: unknown): SavedProgress => {
+  const categories = Array.from(new Set(cards.map((card) => card.category))).sort();
+  const categoryStates = Object.fromEntries(
+    categories.map((category) => [category, getDefaultCategoryState()])
+  ) as Record<string, CategoryStudyState>;
+
+  if (!item || typeof item !== 'object') {
+    return {
+      categoryStates,
+      selectedCategory: categories[0] ?? 'All',
+      reviewHistory: [],
+      locale: 'fa',
+      streak: 0,
+      lastStreakDate: ''
+    };
+  }
+
+  const legacy = item as { cards?: Array<{ id: number; box?: number; reviewCount?: number; lastReviewed?: string }> };
+  if (!Array.isArray(legacy.cards)) {
+    return {
+      categoryStates,
+      selectedCategory: 'All',
+      reviewHistory: [],
+      locale: 'fa',
+      streak: 0,
+      lastStreakDate: ''
+    };
+  }
+
+  legacy.cards.forEach((entry) => {
+    const card = cards.find((item) => item.id === entry.id);
+    if (!card) return;
+    const categoryState = categoryStates[card.category] ?? getDefaultCategoryState();
+    categoryState.cards[card.id] = {
+      id: card.id,
+      box: (entry.box as 1 | 2 | 3 | 4 | 5) ?? 1,
+      lastReviewed: entry.lastReviewed ?? '',
+      nextReviewAt: getTodayString(),
+      reviewCount: entry.reviewCount ?? 0,
+      createdAt: getTodayString(),
+      introducedOn: getTodayString()
+    };
+    categoryState.introducedCount = Math.max(categoryState.introducedCount, 1);
+    categoryState.lastIntroducedDate = getTodayString();
+    categoryStates[card.category] = categoryState;
+  });
+
+  return {
+    categoryStates,
+    selectedCategory: 'All',
+    reviewHistory: [],
+    locale: 'fa',
+    streak: 0,
+    lastStreakDate: ''
+  };
 };
 
-export const loadProgress = (cards: { id: number }[]): SavedProgress => {
-  const defaultStatuses = buildDefaultStatuses(cards);
-  const defaultStats = calculateProgressStats(cards, defaultStatuses);
-
+export const loadProgress = (cards: CollocationCard[]): SavedProgress => {
+  const categories = Array.from(new Set(cards.map((card) => card.category))).sort();
   const defaultProgress: SavedProgress = {
-    cards: buildProgressFromStatuses(cards, defaultStatuses),
-    selectedCategory: 'All',
-    statistics: defaultStats,
+    categoryStates: Object.fromEntries(categories.map((category) => [category, getDefaultCategoryState()])),
+    selectedCategory: categories[0] ?? 'All',
     reviewHistory: [],
     locale: 'fa',
     streak: 0,
@@ -122,47 +116,21 @@ export const loadProgress = (cards: { id: number }[]): SavedProgress => {
     const parsed = JSON.parse(raw) as unknown;
 
     if (isSavedProgress(parsed)) {
-      console.log('Progress restored');
-      const restoredCards = cards.map((card) => {
-        const savedCard = parsed.cards.find((entry) => entry.id === card.id);
-        return {
-          id: card.id,
-          box: savedCard?.box ?? 1,
-          mastered: savedCard?.mastered ?? false,
-          reviewCount: typeof savedCard?.reviewCount === 'number' ? savedCard.reviewCount : 0,
-          lastReviewed: savedCard?.lastReviewed ?? ''
-        };
-      });
-      return {
-        cards: restoredCards,
-        selectedCategory: parsed.selectedCategory,
-        statistics: parsed.statistics,
-        reviewHistory: parsed.reviewHistory.filter(isReviewHistoryEntry),
-        locale: parsed.locale === 'en' ? 'en' : 'fa',
-        streak: parsed.streak,
-        lastStreakDate: parsed.lastStreakDate
-      };
-    }
+      const restoredCategoryStates = Object.fromEntries(
+        Object.entries(parsed.categoryStates).map(([category, state]) => [category, isCategoryStudyState(state) ? state : getDefaultCategoryState()])
+      ) as Record<string, CategoryStudyState>;
 
-    if (isLegacyStorage(parsed)) {
-      console.log('Progress restored from legacy state');
-      const statuses = cards.reduce<CardStatusMap>((acc, card) => {
-        acc[card.id] = parsed.statuses?.[card.id] ?? { box: 1, lastReviewed: '' };
-        return acc;
-      }, {});
-      const restoredCards = buildProgressFromStatuses(cards, statuses);
       return {
-        cards: restoredCards,
-        selectedCategory: typeof parsed.selectedCategory === 'string' ? parsed.selectedCategory : 'All',
-        statistics: parsed.progressStats ?? calculateProgressStats(cards, statuses),
-        reviewHistory: Array.isArray(parsed.reviewHistory) ? parsed.reviewHistory.filter(isReviewHistoryEntry) : [],
-        locale: parsed.locale === 'en' ? 'en' : 'fa',
+        categoryStates: restoredCategoryStates,
+        selectedCategory: parsed.selectedCategory || categories[0] || 'All',
+        reviewHistory: parsed.reviewHistory.filter(isReviewHistoryEntry),
+        locale: parsed.locale === 'fa' ? 'fa' : 'fa',
         streak: typeof parsed.streak === 'number' ? parsed.streak : 0,
         lastStreakDate: typeof parsed.lastStreakDate === 'string' ? parsed.lastStreakDate : ''
       };
     }
 
-    return defaultProgress;
+    return migrateLegacyProgress(cards, parsed);
   } catch {
     return defaultProgress;
   }
@@ -172,7 +140,6 @@ export const saveProgress = (data: SavedProgress) => {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    console.log('Progress saved');
   } catch {
     // ignore storage errors
   }
@@ -182,5 +149,3 @@ export const clearProgress = () => {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(STORAGE_KEY);
 };
-
-export type { CardStatusMap } from './leitnerAlgorithm';

@@ -9,17 +9,36 @@ export type CollocationCard = {
   category: string;
 };
 
-export type LocaleKey = 'fa' | 'en';
+export type LocaleKey = 'fa';
 
-export type CardBoxStatus = {
+export type ReviewCardState = {
+  id: number;
   box: 1 | 2 | 3 | 4 | 5;
   lastReviewed: string;
+  nextReviewAt: string;
+  reviewCount: number;
+  createdAt: string;
+  introducedOn: string;
 };
 
-export type CategoryProgress = {
-  box1: number;
-  box2: number;
-  box3: number;
-  box4: number;
-  mastered: number;
+export type CategoryStudyState = {
+  cards: Record<number, ReviewCardState>;
+  introducedCount: number;
+  lastIntroducedDate: string;
+};
+
+export type ReviewHistoryEntry = {
+  cardId: number;
+  category: string;
+  response: 'wrong' | 'hard' | 'correct';
+  timestamp: string;
+};
+
+export type SavedProgress = {
+  categoryStates: Record<string, CategoryStudyState>;
+  selectedCategory: string;
+  reviewHistory: ReviewHistoryEntry[];
+  locale: LocaleKey;
+  streak: number;
+  lastStreakDate: string;
 };

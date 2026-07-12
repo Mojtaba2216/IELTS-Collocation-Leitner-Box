@@ -1,9 +1,13 @@
 import type { CollocationCard, LocaleKey } from '../types';
-import type { CardStatusMap } from '../utils/leitnerAlgorithm';
+
+type CardStatus = {
+  box: 1 | 2 | 3 | 4 | 5;
+  lastReviewed: string;
+};
 
 type Props = {
   categories: { name: string; count: number }[];
-  statuses: CardStatusMap;
+  statuses: Record<number, CardStatus>;
   cards: CollocationCard[];
   locale: LocaleKey;
 };
