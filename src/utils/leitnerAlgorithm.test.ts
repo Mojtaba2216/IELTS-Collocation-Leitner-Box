@@ -12,12 +12,13 @@ import {
   getDefaultCategoryState,
   ensureCategoryStateForToday,
   ensureAllCategoryStates,
+  ensureAllDailyProgressForToday,
   buildDailyReviewSummary,
   applyReviewResponse,
   simulateNextDay,
   getCurrentDate
 } from './leitnerAlgorithm';
-import type { CollocationCard } from '../types';
+import type { CollocationCard, DailyProgressEntry } from '../types';
 
 // Mock card data
 const createMockCards = (count: number, category: string): CollocationCard[] => {
@@ -40,7 +41,13 @@ console.log('Test 1: Generate exactly 10 new cards per category per day');
 const today = getTodayString();
 const cards = createMockCards(30, 'اقتصاد');
 const initialState = getDefaultCategoryState();
-const stateAfterDay1 = ensureCategoryStateForToday(initialState, cards, today, 10);
+const dailyProgressEntry: DailyProgressEntry = {
+  date: today,
+  newCardIds: cards.slice(0, 10).map((card) => card.id),
+  reviewedCardIds: []
+};
+
+const stateAfterDay1 = ensureCategoryStateForToday(initialState, cards, today, dailyProgressEntry);
 
 console.log(`  Today: ${today}`);
 console.log(`  Cards introduced today: ${Object.values(stateAfterDay1.cards).filter(c => c.createdAt === today).length}`);
@@ -62,7 +69,7 @@ console.log(`  ✅ PASS: ${allReviewToday ? 'YES' : 'NO'}\n`);
 
 // Test 4: Correct daily summary for today
 console.log('Test 4: Daily summary should show 10 new cards, 0 ready for review');
-const summary = buildDailyReviewSummary(stateAfterDay1, cards, today);
+const summary = buildDailyReviewSummary(stateAfterDay1, cards, today, dailyProgressEntry);
 console.log(`  New cards today: ${summary.summary.newCards}`);
 console.log(`  Ready for review: ${summary.summary.readyForReview}`);
 console.log(`  Total queue: ${summary.summary.total}`);
@@ -115,8 +122,12 @@ console.log('Test 9: Multiple categories should have independent states');
 const econ = createMockCards(25, 'اقتصاد');
 const env = createMockCards(25, 'محیط‌زیست');
 const allCards = [...econ, ...env];
-const initialStates = {};
-const categoryStates = ensureAllCategoryStates(initialStates, allCards, today, 10);
+const initialStates = {} as Record<string, any>;
+const initialProgress = {
+  اقتصاد: { date: today, newCardIds: [], reviewedCardIds: [] },
+  محیط‌زیست: { date: today, newCardIds: [], reviewedCardIds: [] }
+};
+const categoryStates = ensureAllCategoryStates(initialStates, allCards, today, initialProgress, 10);
 
 console.log(`  Number of categories: ${Object.keys(categoryStates).length}`);
 console.log(`  Cards in اقتصاد: ${Object.values(categoryStates['اقتصاد'].cards).length}`);
@@ -125,7 +136,14 @@ console.log(`  ✅ PASS: ${Object.keys(categoryStates).length === 2 ? 'YES' : 'N
 
 // Test 10: Box distribution summary
 console.log('Test 10: Box distribution summary');
-const summaryEcon = buildDailyReviewSummary(categoryStates['اقتصاد'], econ, today);
+const summaryEconProgress: DailyProgressEntry = {
+  date: today,
+  newCardIds: Object.values(categoryStates['اقتصاد'].cards)
+    .filter((card) => card.createdAt === today)
+    .map((card) => card.id),
+  reviewedCardIds: []
+};
+const summaryEcon = buildDailyReviewSummary(categoryStates['اقتصاد'], econ, today, summaryEconProgress);
 console.log(`  Box 1: ${summaryEcon.summary.box1} cards`);
 console.log(`  Box 2: ${summaryEcon.summary.box2} cards`);
 console.log(`  Box 3: ${summaryEcon.summary.box3} cards`);

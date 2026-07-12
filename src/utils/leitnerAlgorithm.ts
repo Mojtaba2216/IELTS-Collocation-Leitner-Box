@@ -1,4 +1,4 @@
-import type { CategoryStudyState, CollocationCard, ReviewCardState } from '../types';
+import type { CategoryStudyState, CollocationCard, DailyProgressEntry, ReviewCardState } from '../types';
 
 // Review intervals for each box (in days)
 // Box 1: 1 day (daily)
@@ -45,52 +45,89 @@ export const getDefaultCategoryState = (): CategoryStudyState => ({
   lastIntroducedDate: ''
 });
 
+export const getDefaultDailyProgressEntry = (): DailyProgressEntry => ({
+  date: '',
+  newCardIds: [],
+  reviewedCardIds: []
+});
+
+export const ensureDailyProgressEntryForToday = (
+  progressEntry: DailyProgressEntry,
+  state: CategoryStudyState,
+  cards: CollocationCard[],
+  today: string,
+  newCardsPerDay = 10
+): DailyProgressEntry => {
+  const isSameDay = progressEntry.date === today;
+  const existingIds = new Set(Object.keys(state.cards).map(Number));
+  const remainingCards = cards.filter((card) => !existingIds.has(card.id));
+  const currentNewIds = isSameDay ? [...progressEntry.newCardIds] : [];
+  const updatedReviewedCardIds = isSameDay
+    ? progressEntry.reviewedCardIds.filter((id) => currentNewIds.includes(id))
+    : [];
+
+  const availableNewIds = remainingCards
+    .map((card) => card.id)
+    .filter((id) => !currentNewIds.includes(id));
+
+  while (currentNewIds.length < newCardsPerDay && availableNewIds.length > 0) {
+    currentNewIds.push(availableNewIds.shift() as number);
+  }
+
+  return {
+    date: today,
+    newCardIds: currentNewIds,
+    reviewedCardIds: updatedReviewedCardIds
+  };
+};
+
 /**
- * Generate exactly 10 new cards per category per day
- * Each new card goes to Box 1
+ * Ensure the category state contains the exact new cards assigned for today.
  */
 export const ensureCategoryStateForToday = (
   state: CategoryStudyState,
   cards: CollocationCard[],
   today: string,
-  newCardsPerDay = 10
+  dailyProgressEntry: DailyProgressEntry
 ): CategoryStudyState => {
   const nextState: CategoryStudyState = {
     ...state,
     cards: { ...state.cards }
   };
 
-  // Find cards not yet introduced to this category
-  const existingIds = new Set(Object.keys(nextState.cards).map(Number));
-  const notIntroducedCards = cards.filter((card) => !existingIds.has(card.id));
+  dailyProgressEntry.newCardIds.forEach((cardId) => {
+    const card = cards.find((item) => item.id === cardId);
+    if (!card) return;
 
-  // Check how many cards were introduced today
-  const introducedTodayCount = Object.values(nextState.cards).filter(
-    (card) => card.createdAt === today
-  ).length;
-
-  // Calculate remaining slots for today
-  const remainingSlots = Math.max(0, newCardsPerDay - introducedTodayCount);
-
-  // Add new cards to Box 1 if there are slots
-  if (remainingSlots > 0 && notIntroducedCards.length > 0) {
-    const toIntroduce = notIntroducedCards.slice(0, remainingSlots);
-
-    toIntroduce.forEach((card) => {
-      nextState.cards[card.id] = {
-        id: card.id,
-        category: card.category,
+    const existingCardState = nextState.cards[cardId];
+    if (existingCardState) {
+      nextState.cards[cardId] = {
+        ...existingCardState,
         box: 1,
+        boxNumber: 1,
+        isNew: true,
+        introducedDay: today,
         createdAt: today,
-        nextReviewDate: today, // Box 1: review same day
-        lastReviewedDate: '',
-        reviewCount: 0
+        nextReviewDate: today
       };
-    });
+      return;
+    }
 
-    nextState.introducedCount = Object.values(nextState.cards).length;
-  }
+    nextState.cards[cardId] = {
+      id: card.id,
+      category: card.category,
+      box: 1,
+      boxNumber: 1,
+      isNew: true,
+      introducedDay: today,
+      createdAt: today,
+      nextReviewDate: today,
+      lastReviewedDate: '',
+      reviewCount: 0
+    };
+  });
 
+  nextState.introducedCount = Object.values(nextState.cards).length;
   nextState.lastIntroducedDate = today;
   return nextState;
 };
@@ -102,6 +139,7 @@ export const ensureAllCategoryStates = (
   states: Record<string, CategoryStudyState>,
   cards: CollocationCard[],
   today: string,
+  dailyProgress: Record<string, DailyProgressEntry>,
   newCardsPerDay = 10
 ): Record<string, CategoryStudyState> => {
   const categories = Array.from(new Set(cards.map((card) => card.category))).sort();
@@ -109,8 +147,34 @@ export const ensureAllCategoryStates = (
   return categories.reduce<Record<string, CategoryStudyState>>((acc, category) => {
     const categoryCards = cards.filter((card) => card.category === category);
     const categoryState = states[category] ?? getDefaultCategoryState();
-    
+    const progressEntry = dailyProgress[category] ?? getDefaultDailyProgressEntry();
+
     acc[category] = ensureCategoryStateForToday(
+      categoryState,
+      categoryCards,
+      today,
+      progressEntry
+    );
+    return acc;
+  }, {});
+};
+
+export const ensureAllDailyProgressForToday = (
+  dailyProgress: Record<string, DailyProgressEntry>,
+  states: Record<string, CategoryStudyState>,
+  cards: CollocationCard[],
+  today: string,
+  newCardsPerDay = 10
+): Record<string, DailyProgressEntry> => {
+  const categories = Array.from(new Set(cards.map((card) => card.category))).sort();
+
+  return categories.reduce<Record<string, DailyProgressEntry>>((acc, category) => {
+    const categoryCards = cards.filter((card) => card.category === category);
+    const categoryState = states[category] ?? getDefaultCategoryState();
+    const categoryProgress = dailyProgress[category] ?? getDefaultDailyProgressEntry();
+
+    acc[category] = ensureDailyProgressEntryForToday(
+      categoryProgress,
       categoryState,
       categoryCards,
       today,
@@ -123,34 +187,32 @@ export const ensureAllCategoryStates = (
 /**
  * Build daily review summary for a category
  * Shows:
- * - 10 new cards for today
- * - Cards ready for review from previous days
+ * - cards ready for review from earlier days
+ * - today's new cards
  */
 export const buildDailyReviewSummary = (
   state: CategoryStudyState,
   cards: CollocationCard[],
-  today: string
+  today: string,
+  dailyProgressEntry: DailyProgressEntry
 ) => {
   const allCards = Object.values(state.cards);
+  const todayNewSet = new Set(dailyProgressEntry.newCardIds);
 
-  // New cards introduced today (Box 1, created today)
-  const newCardsToday = allCards.filter(
-    (card) => card.createdAt === today && card.box === 1
-  );
+  const newCardsToday = dailyProgressEntry.newCardIds
+    .map((id) => state.cards[id])
+    .filter((card): card is ReviewCardState => Boolean(card));
 
-  // Cards ready for review (nextReviewDate <= today, but not introduced today)
   const readyForReview = allCards.filter(
-    (card) => card.createdAt !== today && isDateBeforeOrEqual(card.nextReviewDate, today)
+    (card) => !todayNewSet.has(card.id) && isDateBeforeOrEqual(card.nextReviewDate, today)
   );
 
-  // Cards by box (all cards)
   const box1Cards = allCards.filter((card) => card.box === 1);
   const box2Cards = allCards.filter((card) => card.box === 2);
   const box3Cards = allCards.filter((card) => card.box === 3);
   const box4Cards = allCards.filter((card) => card.box === 4);
   const box5Cards = allCards.filter((card) => card.box === 5);
 
-  // Review queue: First cards ready for review, then new cards
   const queue = [
     ...readyForReview,
     ...newCardsToday
@@ -190,6 +252,8 @@ export const applyReviewResponse = (
     return {
       ...cardState,
       box: 1,
+      boxNumber: 1,
+      isNew: false,
       lastReviewedDate: reviewedAt,
       nextReviewDate: today, // Repeat today
       reviewCount: cardState.reviewCount + 1
@@ -203,6 +267,8 @@ export const applyReviewResponse = (
     return {
       ...cardState,
       box: cardState.box,
+      boxNumber: cardState.box,
+      isNew: false,
       lastReviewedDate: reviewedAt,
       nextReviewDate: addDays(today, halfInterval),
       reviewCount: cardState.reviewCount + 1
@@ -215,6 +281,8 @@ export const applyReviewResponse = (
     return {
       ...cardState,
       box: 5,
+      boxNumber: 5,
+      isNew: false,
       lastReviewedDate: reviewedAt,
       nextReviewDate: addDays(today, BOX_INTERVALS[5]),
       reviewCount: cardState.reviewCount + 1
@@ -227,6 +295,8 @@ export const applyReviewResponse = (
   return {
     ...cardState,
     box: nextBox,
+    boxNumber: nextBox,
+    isNew: false,
     lastReviewedDate: reviewedAt,
     nextReviewDate: addDays(today, interval),
     reviewCount: cardState.reviewCount + 1
@@ -252,6 +322,78 @@ export const simulateNextDay = (): string => {
 /**
  * Get the current date (respects simulated date for testing)
  */
+export type DailyQuotaSimulationResult = {
+  category: string;
+  day: string;
+  newCards: number;
+  uniqueNewCards: boolean;
+  expectedNewCards: number;
+};
+
+export type DailyQuotaSimulationReport = {
+  success: boolean;
+  days: string[];
+  results: DailyQuotaSimulationResult[];
+  errors: string[];
+};
+
+export const runDailyQuotaSimulation = (
+  cards: CollocationCard[],
+  dayCount: number,
+  newCardsPerDay = 10
+): DailyQuotaSimulationReport => {
+  const categories = Array.from(new Set(cards.map((card) => card.category))).sort();
+  let state: Record<string, CategoryStudyState> = Object.fromEntries(
+    categories.map((category) => [category, getDefaultCategoryState()])
+  );
+  let dailyProgress: Record<string, DailyProgressEntry> = Object.fromEntries(
+    categories.map((category) => [category, getDefaultDailyProgressEntry()])
+  );
+
+  const results: DailyQuotaSimulationResult[] = [];
+  const errors: string[] = [];
+  const introducedSets: Record<string, Set<number>> = Object.fromEntries(
+    categories.map((category) => [category, new Set<number>()])
+  );
+
+  for (let dayIndex = 0; dayIndex < dayCount; dayIndex += 1) {
+    const day = addDays(getTodayString(), dayIndex);
+    dailyProgress = ensureAllDailyProgressForToday(dailyProgress, state, cards, day, newCardsPerDay);
+    state = ensureAllCategoryStates(state, cards, day, dailyProgress, newCardsPerDay);
+
+    for (const category of categories) {
+      const entry = dailyProgress[category];
+      const uniqueNewCards = entry.newCardIds.every((id) => !introducedSets[category].has(id)) &&
+        new Set(entry.newCardIds).size === entry.newCardIds.length;
+
+      entry.newCardIds.forEach((id) => introducedSets[category].add(id));
+
+      const result: DailyQuotaSimulationResult = {
+        category,
+        day,
+        newCards: entry.newCardIds.length,
+        uniqueNewCards,
+        expectedNewCards: newCardsPerDay
+      };
+
+      results.push(result);
+      if (entry.newCardIds.length !== newCardsPerDay) {
+        errors.push(`Category ${category} day ${day} introduced ${entry.newCardIds.length} cards, expected ${newCardsPerDay}`);
+      }
+      if (!uniqueNewCards) {
+        errors.push(`Category ${category} day ${day} introduced duplicate cards across days`);
+      }
+    }
+  }
+
+  return {
+    success: errors.length === 0,
+    days: Array.from({ length: dayCount }, (_, i) => addDays(getTodayString(), i)),
+    results,
+    errors
+  };
+};
+
 export const getCurrentDate = (): string => {
   if (typeof window !== 'undefined') {
     const simulated = window.localStorage.getItem('__leitner_simulated_date__');

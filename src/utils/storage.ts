@@ -1,5 +1,5 @@
-import type { CategoryStudyState, CollocationCard, LocaleKey, ReviewHistoryEntry, SavedProgress } from '../types';
-import { getDefaultCategoryState, getTodayString } from './leitnerAlgorithm';
+import type { CategoryStudyState, CollocationCard, DailyProgressEntry, LocaleKey, ReviewHistoryEntry, SavedProgress } from '../types';
+import { getDefaultCategoryState, getDefaultDailyProgressEntry, getTodayString } from './leitnerAlgorithm';
 
 const STORAGE_KEY = 'ielts-collocation-leitner-state-v2';
 
@@ -17,8 +17,7 @@ const isReviewHistoryEntry = (item: unknown): item is ReviewHistoryEntry => {
 const isCategoryStudyState = (item: unknown): item is CategoryStudyState => {
   if (!item || typeof item !== 'object') return false;
   const state = item as Partial<CategoryStudyState>;
-  
-  // Check if all card values have the required fields
+
   if (typeof state.cards === 'object' && state.cards !== null) {
     const cardEntries = Object.entries(state.cards);
     const allValid = cardEntries.every(([, card]) => {
@@ -28,6 +27,9 @@ const isCategoryStudyState = (item: unknown): item is CategoryStudyState => {
         typeof (card as any).id === 'number' &&
         typeof (card as any).category === 'string' &&
         typeof (card as any).box === 'number' &&
+        typeof (card as any).boxNumber === 'number' &&
+        typeof (card as any).isNew === 'boolean' &&
+        typeof (card as any).introducedDay === 'string' &&
         typeof (card as any).createdAt === 'string' &&
         typeof (card as any).nextReviewDate === 'string' &&
         typeof (card as any).lastReviewedDate === 'string' &&
@@ -39,6 +41,18 @@ const isCategoryStudyState = (item: unknown): item is CategoryStudyState => {
   return false;
 };
 
+const isDailyProgressEntry = (item: unknown): item is DailyProgressEntry => {
+  if (!item || typeof item !== 'object') return false;
+  const entry = item as Partial<DailyProgressEntry>;
+  return (
+    typeof entry.date === 'string' &&
+    Array.isArray(entry.newCardIds) &&
+    entry.newCardIds.every((id) => typeof id === 'number') &&
+    Array.isArray(entry.reviewedCardIds) &&
+    entry.reviewedCardIds.every((id) => typeof id === 'number')
+  );
+};
+
 const isSavedProgress = (item: unknown): item is SavedProgress => {
   if (!item || typeof item !== 'object') return false;
   const progress = item as Partial<SavedProgress>;
@@ -48,7 +62,8 @@ const isSavedProgress = (item: unknown): item is SavedProgress => {
     typeof progress.streak === 'number' &&
     typeof progress.lastStreakDate === 'string' &&
     Array.isArray(progress.reviewHistory) &&
-    typeof progress.categoryStates === 'object' && progress.categoryStates !== null
+    typeof progress.categoryStates === 'object' && progress.categoryStates !== null &&
+    typeof progress.dailyProgress === 'object' && progress.dailyProgress !== null
   );
 };
 
@@ -61,6 +76,7 @@ const migrateLegacyProgress = (cards: CollocationCard[], item: unknown): SavedPr
   if (!item || typeof item !== 'object') {
     return {
       categoryStates,
+      dailyProgress: Object.fromEntries(categories.map((category) => [category, getDefaultDailyProgressEntry()])),
       selectedCategory: categories[0] ?? 'All',
       reviewHistory: [],
       locale: 'fa',
@@ -73,6 +89,7 @@ const migrateLegacyProgress = (cards: CollocationCard[], item: unknown): SavedPr
   if (!Array.isArray(legacy.cards)) {
     return {
       categoryStates,
+      dailyProgress: Object.fromEntries(categories.map((category) => [category, getDefaultDailyProgressEntry()])),
       selectedCategory: 'All',
       reviewHistory: [],
       locale: 'fa',
@@ -90,6 +107,9 @@ const migrateLegacyProgress = (cards: CollocationCard[], item: unknown): SavedPr
       id: card.id,
       category: card.category,
       box: (entry.box as 1 | 2 | 3 | 4 | 5) ?? 1,
+      boxNumber: (entry.box as 1 | 2 | 3 | 4 | 5) ?? 1,
+      isNew: false,
+      introducedDay: today,
       createdAt: today,
       nextReviewDate: today,
       lastReviewedDate: entry.lastReviewed ?? '',
@@ -102,6 +122,7 @@ const migrateLegacyProgress = (cards: CollocationCard[], item: unknown): SavedPr
 
   return {
     categoryStates,
+    dailyProgress: Object.fromEntries(categories.map((category) => [category, getDefaultDailyProgressEntry()])),
     selectedCategory: 'All',
     reviewHistory: [],
     locale: 'fa',
@@ -114,6 +135,7 @@ export const loadProgress = (cards: CollocationCard[]): SavedProgress => {
   const categories = Array.from(new Set(cards.map((card) => card.category))).sort();
   const defaultProgress: SavedProgress = {
     categoryStates: Object.fromEntries(categories.map((category) => [category, getDefaultCategoryState()])),
+    dailyProgress: Object.fromEntries(categories.map((category) => [category, getDefaultDailyProgressEntry()])),
     selectedCategory: categories[0] ?? 'All',
     reviewHistory: [],
     locale: 'fa',
@@ -136,8 +158,18 @@ export const loadProgress = (cards: CollocationCard[]): SavedProgress => {
         Object.entries(parsed.categoryStates).map(([category, state]) => [category, isCategoryStudyState(state) ? state : getDefaultCategoryState()])
       ) as Record<string, CategoryStudyState>;
 
+      const restoredDailyProgress = Object.fromEntries(
+        categories.map((category) => [
+          category,
+          isDailyProgressEntry(parsed.dailyProgress?.[category])
+            ? parsed.dailyProgress[category]
+            : getDefaultDailyProgressEntry()
+        ])
+      ) as Record<string, DailyProgressEntry>;
+
       return {
         categoryStates: restoredCategoryStates,
+        dailyProgress: restoredDailyProgress,
         selectedCategory: parsed.selectedCategory || categories[0] || 'All',
         reviewHistory: parsed.reviewHistory.filter(isReviewHistoryEntry),
         locale: parsed.locale === 'fa' ? 'fa' : 'fa',

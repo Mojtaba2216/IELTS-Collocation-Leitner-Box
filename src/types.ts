@@ -15,6 +15,9 @@ export type ReviewCardState = {
   id: number;
   category: string;
   box: 1 | 2 | 3 | 4 | 5;
+  boxNumber: 1 | 2 | 3 | 4 | 5;
+  isNew: boolean;
+  introducedDay: string;
   createdAt: string;
   nextReviewDate: string;
   lastReviewedDate: string;
@@ -27,6 +30,12 @@ export type CategoryStudyState = {
   lastIntroducedDate: string;
 };
 
+export type DailyProgressEntry = {
+  date: string;
+  newCardIds: number[];
+  reviewedCardIds: number[];
+};
+
 export type ReviewHistoryEntry = {
   cardId: number;
   category: string;
@@ -36,6 +45,7 @@ export type ReviewHistoryEntry = {
 
 export type SavedProgress = {
   categoryStates: Record<string, CategoryStudyState>;
+  dailyProgress: Record<string, DailyProgressEntry>;
   selectedCategory: string;
   reviewHistory: ReviewHistoryEntry[];
   locale: LocaleKey;

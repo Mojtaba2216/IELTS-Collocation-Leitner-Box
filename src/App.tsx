@@ -4,8 +4,11 @@ import {
   applyReviewResponse,
   buildDailyReviewSummary,
   ensureAllCategoryStates,
+  ensureAllDailyProgressForToday,
+  getCurrentDate,
   getDefaultCategoryState,
-  getCurrentDate
+  runDailyQuotaSimulation,
+  type DailyQuotaSimulationReport
 } from './utils/leitnerAlgorithm';
 import { loadProgress, saveProgress } from './utils/storage';
 import FlashCard from './components/FlashCard';
@@ -149,10 +152,29 @@ const CustomSelect = ({ value, options, onChange, className = '' }: CustomSelect
 };
 
 const App = () => {
-  const [progress, setProgress] = useState<SavedProgress>(() => ({
-    ...initialStoredProgress,
-    categoryStates: ensureAllCategoryStates(initialStoredProgress.categoryStates, collocations, getCurrentDate(), 10)
-  }));
+  const [progress, setProgress] = useState<SavedProgress>(() => {
+    const today = getCurrentDate();
+    const dailyProgress = ensureAllDailyProgressForToday(
+      initialStoredProgress.dailyProgress,
+      initialStoredProgress.categoryStates,
+      collocations,
+      today,
+      10
+    );
+    const categoryStates = ensureAllCategoryStates(
+      initialStoredProgress.categoryStates,
+      collocations,
+      today,
+      dailyProgress,
+      10
+    );
+
+    return {
+      ...initialStoredProgress,
+      dailyProgress,
+      categoryStates
+    };
+  });
   const [tab, setTab] = useState<Tab>('home');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -161,6 +183,7 @@ const App = () => {
   const [sessionTotalToday, setSessionTotalToday] = useState(0);
   const [sessionSummary, setSessionSummary] = useState<string | null>(null);
   const [studyMode, setStudyMode] = useState<'standard' | 'again'>('standard');
+  const [testReport, setTestReport] = useState<DailyQuotaSimulationReport | null>(null);
 
   const t = locales.fa;
   const today = getCurrentDate();
@@ -172,15 +195,39 @@ const App = () => {
     }));
   }, []);
 
+  const testModeEnabled = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.search.includes('test');
+  }, []);
+
   useEffect(() => {
     saveProgress(progress);
   }, [progress]);
 
   useEffect(() => {
-    setProgress((prev) => ({
-      ...prev,
-      categoryStates: ensureAllCategoryStates(prev.categoryStates, collocations, today, 10)
-    }));
+    setProgress((prev) => {
+      const dailyProgress = ensureAllDailyProgressForToday(
+        prev.dailyProgress,
+        prev.categoryStates,
+        collocations,
+        today,
+        10
+      );
+
+      const categoryStates = ensureAllCategoryStates(
+        prev.categoryStates,
+        collocations,
+        today,
+        dailyProgress,
+        10
+      );
+
+      return {
+        ...prev,
+        dailyProgress,
+        categoryStates
+      };
+    });
   }, [today]);
 
   useEffect(() => {
@@ -194,9 +241,15 @@ const App = () => {
     return collocations.filter((card) => card.category === selectedCategory);
   }, [selectedCategory]);
 
+  const selectedCategoryProgress = progress.dailyProgress[selectedCategory] || {
+    date: today,
+    newCardIds: [],
+    reviewedCardIds: []
+  };
+
   const dailySummary = useMemo(() => {
-    return buildDailyReviewSummary(currentCategoryState, selectedCategoryCards, today);
-  }, [currentCategoryState, selectedCategoryCards, today]);
+    return buildDailyReviewSummary(currentCategoryState, selectedCategoryCards, today, selectedCategoryProgress);
+  }, [currentCategoryState, selectedCategoryCards, today, selectedCategoryProgress]);
 
   const reviewCards = useMemo(() => {
     return dailySummary.queue
@@ -226,21 +279,21 @@ const App = () => {
 
   const currentCard = reviewModeCards[reviewIndex] ?? null;
   const currentCardState = currentCard ? currentCategoryState.cards[currentCard.id] : null;
-  const dailyBatchSize = 10;
-  const todayCardCount = Math.max(0, reviewModeCards.length || sessionTotalToday || dailyBatchSize);
-  const readyToReviewCount = Math.max(0, dailySummary.summary.total - dailyBatchSize);
-  const totalTodayCards = dailyBatchSize + readyToReviewCount;
+  const dailyNewCardsCount = selectedCategoryProgress.newCardIds.length;
+  const todayCardCount = reviewModeCards.length;
+  const readyToReviewCount = dailySummary.summary.readyForReview;
+  const totalTodayCards = dailySummary.summary.total;
   const remainingToday = Math.max(0, reviewModeCards.length - sessionReviewedCount);
 
   const reviewStats = [
-    { label: t.newCards, value: dailyBatchSize, icon: '✨' },
+    { label: t.newCards, value: dailyNewCardsCount, icon: '✨' },
     { label: t.readyToReview, value: readyToReviewCount, icon: '🧠' },
     { label: t.totalToday, value: totalTodayCards, icon: '📅' }
   ];
 
   const handleCategorySelection = (categoryName: string) => {
     setSelectedCategory(categoryName);
-    setSessionTotalToday(dailyBatchSize);
+    setSessionTotalToday(10);
     setSessionReviewedCount(0);
     setSessionSummary(null);
     setReviewIndex(0);
@@ -250,7 +303,7 @@ const App = () => {
 
   const handleStartStudy = (categoryName: string) => {
     setSelectedCategory(categoryName);
-    setSessionTotalToday(dailyBatchSize);
+    setSessionTotalToday(10);
     setSessionReviewedCount(0);
     setSessionSummary(null);
     setReviewIndex(0);
@@ -292,6 +345,9 @@ const App = () => {
           id: currentCard.id,
           category: selectedCategory,
           box: 1,
+          boxNumber: 1,
+          isNew: true,
+          introducedDay: today,
           createdAt: today,
           nextReviewDate: today,
           lastReviewedDate: '',
@@ -317,6 +373,23 @@ const App = () => {
           [selectedCategory]: nextCategoryState
         };
 
+        const currentProgress = prev.dailyProgress[selectedCategory] ?? {
+          date: today,
+          newCardIds: [],
+          reviewedCardIds: []
+        };
+        const reviewedCardIds = currentProgress.reviewedCardIds.includes(currentCard.id)
+          ? currentProgress.reviewedCardIds
+          : [...currentProgress.reviewedCardIds, currentCard.id];
+
+        const nextDailyProgress = {
+          ...prev.dailyProgress,
+          [selectedCategory]: {
+            ...currentProgress,
+            reviewedCardIds
+          }
+        };
+
         const nextHistory = [
           { cardId: currentCard.id, category: selectedCategory, response, timestamp: reviewedAt },
           ...prev.reviewHistory
@@ -327,6 +400,7 @@ const App = () => {
         return {
           ...prev,
           categoryStates: nextCategoryStates,
+          dailyProgress: nextDailyProgress,
           reviewHistory: nextHistory,
           streak: nextStreak,
           lastStreakDate: prev.lastStreakDate !== today ? today : prev.lastStreakDate,
@@ -400,6 +474,76 @@ const App = () => {
                         />
                       </div>
                     </section>
+
+                    {testModeEnabled ? (
+                      <section className="glass-card test-mode-card">
+                        <div className="section-heading">
+                          <div>
+                            <h3>Test mode: 3-day simulation</h3>
+                            <p>Verify each category receives exactly 10 new cards each day.</p>
+                          </div>
+                          <button
+                            className="secondary-pill"
+                            onClick={() => {
+                              const report = runDailyQuotaSimulation(collocations, 3, 10);
+                              setTestReport(report);
+                            }}
+                          >
+                            Run simulation
+                          </button>
+                        </div>
+                        {testReport ? (
+                          <div className="test-report">
+                            <div className={`test-report-status ${testReport.success ? 'pass' : 'fail'}`}>
+                              {testReport.success ? '✅ Simulation passed' : '❌ Simulation failed'}
+                            </div>
+                            <div className="test-report-summary">
+                              <p>Days: {testReport.days.join(', ')}</p>
+                              <p>Results: {testReport.results.length} records</p>
+                              {testReport.errors.length > 0 ? (
+                                <ul>
+                                  {testReport.errors.map((error) => (
+                                    <li key={error}>{error}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p>Every category got exactly 10 unique new cards per day.</p>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+                          <div className="debug-status">
+                            <h4>Debug status</h4>
+                            <p>Showing selected categories totals and today's new cards (from dailyProgress)</p>
+                            <div className="debug-grid">
+                              {[
+                                'محیط زیست',
+                                'اقتصاد',
+                                'آموزش',
+                                'جرم و قانون',
+                                'سلامت',
+                                'فناوری',
+                                'جامعه',
+                                'شهر و حمل و نقل',
+                                'کار و شغل',
+                                'فرهنگ و رسانه'
+                              ].map((cat) => {
+                                const normalized = cat === 'محیط زیست' ? 'محیط‌زیست' : cat === 'شهر و حمل و نقل' ? 'شهرسازی' : cat === 'جامعه' ? 'حقوق اجتماعی' : cat === 'فرهنگ و رسانه' ? 'فرهنگ' : cat;
+                                const total = collocations.filter((c) => c.category === normalized).length;
+                                const todayProgress = progress.dailyProgress[normalized];
+                                const todaysNew = todayProgress && todayProgress.date === today ? (todayProgress.newCardIds || []).length : 0;
+                                return (
+                                  <div key={cat} className="debug-item">
+                                    <strong>{cat}:</strong>
+                                    <div>Total cards: {total}</div>
+                                    <div>Today's new cards: {todaysNew}/10</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                      </section>
+                    ) : null}
 
                     <section className="glass-card">
                       <div className="section-heading">
